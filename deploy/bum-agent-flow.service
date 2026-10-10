@@ -4,14 +4,14 @@ After=network.target
 
 [Service]
 Type=simple
-User=bum
-WorkingDirectory=/opt/bum
+User=jelawal
+WorkingDirectory=/home/jelawal/AGENT/JL/BUM
 Environment=PYTHONUNBUFFERED=1
 Environment=AGENT_FLOW_HOST=0.0.0.0
 Environment=AGENT_FLOW_PORT=8900
-Environment="PATH=/opt/bum/.venv/bin:/usr/local/bin:/usr/bin:/bin"
-EnvironmentFile=/opt/bum/.env
-ExecStart=/opt/bum/.venv/bin/python run_server.py
+Environment="PATH=/home/jelawal/.local/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/jelawal/AGENT/JL/BUM/.env
+ExecStart=/home/jelawal/AGENT/JL/BUM/.venv/bin/python run_server.py
 Restart=always
 RestartSec=5
 
