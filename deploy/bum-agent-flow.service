@@ -1,0 +1,19 @@
+[Unit]
+Description=BUM Multi-Agent SWE Orchestrator Control Room
+After=network.target
+
+[Service]
+Type=simple
+User=bum
+WorkingDirectory=/opt/bum
+Environment=PYTHONUNBUFFERED=1
+Environment=AGENT_FLOW_HOST=0.0.0.0
+Environment=AGENT_FLOW_PORT=8900
+Environment="PATH=/opt/bum/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/opt/bum/.env
+ExecStart=/opt/bum/.venv/bin/python run_server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

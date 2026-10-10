@@ -1,0 +1,35 @@
+# Secrets & environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Node & Frontend
+node_modules/
+agent-flow-ui/dist/
+agent-flow-ui/.vite/
+*.tsbuildinfo
+
+# BUM Runs, Logs & Dynamic Caches
+.bum/
+pipeline/runs/
+benchmark_outputs/
+*.log
+
+# Syncthing & OS Caches
+.stfolder/
+.stversions/
+.DS_Store
+Thumbs.db

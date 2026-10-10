@@ -1,0 +1,9 @@
+.env
+node_modules
+__pycache__
+*.pyc
+.venv
+.pytest_cache
+.DS_Store
+dist
+pipeline/runs

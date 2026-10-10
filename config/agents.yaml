@@ -1,0 +1,26 @@
+agents:
+
+  planner:
+    provider: openrouter
+    model: google/gemini-2.5-flash
+    instructions: planner/instructions.md
+
+  frontend:
+    provider: openrouter
+    model: google/gemini-2.5-pro
+    instructions: frontend/instructions.md
+
+  backend:
+    provider: openrouter
+    model: google/gemini-2.5-pro
+    instructions: backend/instructions.md
+
+  tester:
+    provider: openrouter
+    model: deepseek/deepseek-v4-flash-0731
+    instructions: tester/instructions.md
+
+  reviewer:
+    provider: anthropic
+    model: claude-sonnet-5
+    instructions: reviewer/instructions.md

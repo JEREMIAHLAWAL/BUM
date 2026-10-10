@@ -1,0 +1,19 @@
+# Current Trayne Task
+
+TASK:
+None
+
+PLANNER OUTPUT:
+None
+
+FRONTEND OUTPUT:
+None
+
+BACKEND OUTPUT:
+None
+
+TESTER OUTPUT:
+None
+
+REVIEWER OUTPUT:
+None
