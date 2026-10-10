@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { RunState } from '../types';
+import { copyToClipboard } from '../utils/clipboard';
+import type { RunState, StageRun, Attempt } from '../types';
 
 interface InspectionPanelProps {
   run: RunState | null;
@@ -64,9 +65,11 @@ export const InspectionPanel: React.FC<InspectionPanelProps> = ({
 
   const handleCopyLog = async () => {
     if (!rawOutput) return;
-    await navigator.clipboard?.writeText(rawOutput);
-    setCopiedLog(true);
-    setTimeout(() => setCopiedLog(false), 1800);
+    const ok = await copyToClipboard(rawOutput);
+    if (ok) {
+      setCopiedLog(true);
+      setTimeout(() => setCopiedLog(false), 1800);
+    }
   };
 
   return (
