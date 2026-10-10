@@ -103,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="brand-group">
           <div className="brand-title">
             <span className="brand-icon">⬡</span>
-            <span className="brand-name">TRAYNE AGENT FLOW</span>
+            <span className="brand-name">BUM AGENT FLOW</span>
             <span className="brand-tag">CONTROL ROOM</span>
           </div>
           <div className="connection-status">

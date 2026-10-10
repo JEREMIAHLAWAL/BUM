@@ -189,7 +189,7 @@ describe('Agent Flow Control Room Dashboard', () => {
     render(<App />);
 
     // Header title
-    expect(screen.getByText('TRAYNE AGENT FLOW')).toBeInTheDocument();
+    expect(screen.getByText('BUM AGENT FLOW')).toBeInTheDocument();
 
     // Runs in sidebar
     await waitFor(() => {
