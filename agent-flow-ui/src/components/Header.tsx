@@ -1,214 +1,152 @@
-import React, { useState } from 'react';
-import type { RunState } from '../types';
+import React from 'react';
 import type { WorkspaceProject } from '../api';
-import { fetchPromptPreview } from '../api';
-import { PromptPreviewModal } from './PromptPreviewModal';
 
 interface HeaderProps {
-  run: RunState | null;
-  selectedRunId: string | null;
+  run?: any;
+  selectedRunId?: string | null;
   isConnected: boolean;
   projects?: WorkspaceProject[];
   activeProjectPath?: string;
   onSelectProject?: (pathOrId: string) => void;
-  onRefresh: () => void;
+  onRefresh?: () => void;
   onClone?: (task: string, label?: string) => void;
+  audioEnabled?: boolean;
+  onToggleAudio?: () => void;
+  onOpenSidebar?: () => void;
+  onNewTask?: () => void;
+  onCommandMenu?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  run,
-  selectedRunId,
   isConnected,
   projects = [],
   activeProjectPath = '',
   onSelectProject,
-  onRefresh,
-  onClone,
+  audioEnabled = false,
+  onToggleAudio,
+  onOpenSidebar,
+  onNewTask,
+  onCommandMenu,
 }) => {
-  const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [previewContent, setPreviewContent] = useState('');
-  const [previewTitle, setPreviewTitle] = useState('');
-  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-
-  const handleInspectPrompt = async () => {
-    if (!run?.task) return;
-    const taskText = run.task.trim();
-    const fileMatch = taskText.match(/@file:([^\s]+)/);
-    if (fileMatch) {
-      const referencedPath = fileMatch[1];
-      setIsLoadingPreview(true);
-      try {
-        const data = await fetchPromptPreview(referencedPath);
-        setPreviewTitle(run.label || run.run_id || referencedPath);
-        setPreviewFilePath(data.resolved_path || referencedPath);
-        setPreviewContent(data.content);
-        setPreviewModalOpen(true);
-      } catch (err: any) {
-        setPreviewTitle(run.label || run.run_id || 'Prompt');
-        setPreviewFilePath(null);
-        setPreviewContent(`[Failed to load @file (${referencedPath}): ${err.message}]\n\nFull Raw Task:\n${taskText}`);
-        setPreviewModalOpen(true);
-      } finally {
-        setIsLoadingPreview(false);
-      }
-    } else {
-      setPreviewTitle(run.label || run.run_id || 'Run Task');
-      setPreviewFilePath(null);
-      setPreviewContent(taskText);
-      setPreviewModalOpen(true);
-    }
-  };
-  const getStatusBadge = (status?: string) => {
-    const s = (status || 'waiting').toLowerCase();
-    switch (s) {
-      case 'running':
-        return <span className="status-badge running"><span className="pulse-dot"></span> RUNNING</span>;
-      case 'awaiting_human_approval':
-      case 'awaiting approval':
-      case 'approve':
-        return <span className="status-badge awaiting"><span className="pulse-dot"></span> AWAITING APPROVAL</span>;
-      case 'approved':
-        return <span className="status-badge approved">✔ APPROVED</span>;
-      case 'rejected':
-        return <span className="status-badge rejected">✖ REJECTED</span>;
-      case 'blocked':
-      case 'dependency_action_required':
-      case 'dependency_required':
-        return <span className="status-badge blocked">✖ BLOCKED</span>;
-      case 'failed':
-        return <span className="status-badge failed">⚠ FAILED</span>;
-      case 'interrupted':
-      case 'stale':
-        return <span className="status-badge interrupted">⚠ INTERRUPTED / STALE</span>;
-      case 'cancelled':
-      case 'canceled':
-        return <span className="status-badge cancelled">⏹ CANCELLED</span>;
-      default:
-        return <span className="status-badge waiting">IDLE / {s.toUpperCase()}</span>;
-    }
-  };
-
-  const formatDuration = (sec?: number | null) => {
-    if (sec === undefined || sec === null) return '--';
-    if (sec < 60) return `${sec.toFixed(1)}s`;
-    const m = Math.floor(sec / 60);
-    const rem = (sec % 60).toFixed(1);
-    return `${m}m ${rem}s`;
-  };
-
   return (
-    <header className="control-header">
-      <div className="header-top">
-        <div className="brand-group">
-          <div className="brand-title">
-            <span className="brand-icon">⬡</span>
-            <span className="brand-name">BUM AGENT FLOW</span>
-            <span className="brand-tag">CONTROL ROOM</span>
-          </div>
-          <div className="connection-status">
-            <span className={`conn-indicator ${isConnected ? 'online' : 'offline'}`} />
-            <span className="conn-label">{isConnected ? 'LIVE (SSE)' : 'DISCONNECTED'}</span>
-          </div>
-
-          {projects.length > 0 && onSelectProject && (
-            <div className="project-switcher-container">
-              <span className="project-label">WORKSPACE:</span>
-              <select
-                className="project-select"
-                value={activeProjectPath}
-                onChange={(e) => onSelectProject(e.target.value)}
-                title="Switch Target Project Workspace"
-              >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.path}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        <div className="header-meta">
-          <button className="btn-refresh" onClick={onRefresh} title="Reload Run Data">
-            ⟳ Refresh
-          </button>
-          {run && (
-            <>
-              <div className="meta-box">
-                <span className="meta-label">CYCLE</span>
-                <span className="meta-value">
-                  {run.current_cycle} / {run.max_review_cycles}
-                </span>
-              </div>
-              <div className="meta-box">
-                <span className="meta-label">DURATION</span>
-                <span className="meta-value">{formatDuration(run.total_duration_sec)}</span>
-              </div>
-              <div className="meta-box">
-                <span className="meta-label">REVIEWER VERDICT</span>
-                <span className={`meta-value ${run.review?.verdict === 'APPROVE' ? 'text-green' : ''}`}>
-                  {run.review?.verdict || 'PENDING'}
-                </span>
-              </div>
-              <div className="meta-box status-box">
-                <span className="meta-label">HUMAN DECISION</span>
-                {getStatusBadge(run.status)}
-              </div>
-            </>
-          )}
-        </div>
+    <header className="app-header">
+      <div className="brand">
+        <button
+          type="button"
+          className="icon-button mobile-menu"
+          aria-label="Open run history"
+          onClick={onOpenSidebar}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="4" x2="20" y1="12" y2="12" />
+            <line x1="4" x2="20" y1="6" y2="6" />
+            <line x1="4" x2="20" y1="18" y2="18" />
+          </svg>
+        </button>
+        <span className="brand-mark" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M2 10v3" />
+            <path d="M6 6v11" />
+            <path d="M10 3v18" />
+            <path d="M14 8v7" />
+            <path d="M18 5v13" />
+            <path d="M22 10v3" />
+          </svg>
+        </span>
+        <span>
+          BUM
+          <span className="brand-caption">CONSOLE</span>
+        </span>
       </div>
 
-      <div className="header-task-bar">
-        <div className="task-info">
-          <span className="task-label">CURRENT RUN:</span>
-          {run?.label && <span className="run-header-label-badge">{run.label}</span>}
-          <span className="task-run-id">{selectedRunId || 'No run selected'}</span>
-          {run?.retry_of && (
-            <span className="lineage-tag" title={`Direct parent run: ${run.retry_of}`}>
-              ⟳ RETRY OF: {run.retry_of}
-            </span>
-          )}
+      <div className="header-workspace">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="muted">
+          <path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5" />
+          <circle cx="13" cy="12" r="2" />
+          <path d="M18 19c-2.8 0-5-2.2-5-5v8" />
+          <circle cx="20" cy="19" r="2" />
+        </svg>
+
+        <div className="select-wrap">
+          <label className="sr-only" htmlFor="workspace">Project workspace</label>
+          <select
+            id="workspace"
+            value={activeProjectPath}
+            onChange={(e) => onSelectProject?.(e.target.value)}
+          >
+            {projects.length > 0 ? (
+              projects.map((p) => (
+                <option key={p.id} value={p.path}>
+                  {p.name}
+                </option>
+              ))
+            ) : (
+              <option value="">BUM orchestrator</option>
+            )}
+          </select>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </div>
-        <div className="task-info task-desc-box">
-          <span className="task-label">TASK:</span>
-          <span className="task-text">{run?.task || 'No active task description'}</span>
-          {run?.task && (
-            <>
-              <button
-                type="button"
-                className="btn-header-prompt-inspect"
-                onClick={handleInspectPrompt}
-                disabled={isLoadingPreview}
-                title="Inspect full prompt specification"
-              >
-                {isLoadingPreview ? '🔍' : '👁 Inspect Prompt'}
-              </button>
-              {onClone && (
-                <button
-                  type="button"
-                  className="btn-header-prompt-inspect"
-                  onClick={() => onClone(run.task || '', run.label || undefined)}
-                  title="Clone prompt and settings into task bar"
-                >
-                  📋 Clone & Edit
-                </button>
-              )}
-            </>
-          )}
-        </div>
+
+        <span className="header-slash">/</span>
+        <span className="header-location">Engineering</span>
       </div>
 
-      {previewModalOpen && (
-        <PromptPreviewModal
-          title={previewTitle}
-          filePath={previewFilePath}
-          content={previewContent}
-          onClose={() => setPreviewModalOpen(false)}
-        />
-      )}
+      <div className="header-actions">
+        <span className={`connection ${isConnected ? 'connection-connected' : 'connection-offline'}`} role="status">
+          <i aria-hidden="true" />
+          {isConnected ? 'Connected' : 'Offline'}
+        </span>
+
+        <span className="header-divider" />
+
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={audioEnabled ? 'Disable audio chimes' : 'Enable audio chimes'}
+          aria-pressed={audioEnabled}
+          onClick={onToggleAudio}
+        >
+          {audioEnabled ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+              <path d="M16 9a5 5 0 0 1 0 6" />
+              <path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+              <line x1="22" x2="16" y1="9" y2="15" />
+              <line x1="16" x2="22" y1="9" y2="15" />
+            </svg>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className="icon-button command-trigger"
+          aria-label="Open command menu"
+          title="Command menu · Ctrl/⌘ K"
+          onClick={onCommandMenu}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          className="button button-small header-new"
+          onClick={onNewTask}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+          </svg>
+          New task
+        </button>
+      </div>
     </header>
   );
 };

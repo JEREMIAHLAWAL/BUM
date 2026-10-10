@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEFAULT_PROVIDER_TIMEOUT_SECONDS = 120.0
+DEFAULT_MAX_TOKENS = 8192
 
 
 class ProviderError(Exception):
@@ -75,6 +76,7 @@ def call_openrouter(
     try:
         response = client.chat.completions.create(
             model=model,
+            max_tokens=DEFAULT_MAX_TOKENS,
             messages=[
                 {
                     "role": "system",

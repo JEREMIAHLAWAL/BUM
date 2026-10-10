@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { RunState, StageAttempt, SingleStageState } from '../types';
-
 import { copyToClipboard } from '../utils/clipboard';
 
 interface StageDetailPanelProps {
@@ -24,8 +23,8 @@ export const StageDetailPanel: React.FC<StageDetailPanelProps> = ({
   const stageData = run.stages[stageKey];
 
   let currentAttempt: StageAttempt | SingleStageState | null = null;
-  let title = selectedStage.toUpperCase();
-  let attemptLabel = 'Single Execution';
+  const title = selectedStage.toUpperCase();
+  let attemptLabel = 'Execution Output';
 
   if (selectedStage === 'planner' || selectedStage === 'preflight') {
     currentAttempt = stageData as SingleStageState;
@@ -56,79 +55,63 @@ export const StageDetailPanel: React.FC<StageDetailPanelProps> = ({
   };
 
   return (
-    <div className="stage-detail-panel">
-      <div className="panel-header">
-        <div className="panel-title-group">
-          <span className="panel-title">STAGE INSPECTION: {title}</span>
-          <span className="panel-subtitle">{attemptLabel}</span>
+    <section className="inspection-panel" aria-label={`Stage inspection for ${selectedStage}`}>
+      <div className="inspector-toolbar">
+        <div className="inspector-agent">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" x2="20" y1="19" y2="19" />
+          </svg>
+          <strong>STAGE INSPECTION: {title}</strong>
+          <span className="muted">/</span>
+          <span className="muted">{attemptLabel}</span>
         </div>
-        <button className="panel-close-btn" onClick={onClose}>
-          ✕ Close
-        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {rawOutput && (
+            <button
+              type="button"
+              className="quiet-button"
+              onClick={handleCopy}
+              title="Copy output to clipboard"
+            >
+              {copied ? '✓ Copied' : '📋 Copy log'}
+            </button>
+          )}
+          <button type="button" className="quiet-button" onClick={onClose} title="Close inspection">
+            ✕ Close
+          </button>
+        </div>
       </div>
 
-      <div className="panel-meta-grid">
-        <div className="meta-card">
-          <span className="meta-k">Status:</span>
-          <span className={`meta-v status-text ${currentAttempt?.status}`}>
-            {currentAttempt?.status?.toUpperCase() || '--'}
-          </span>
-        </div>
-        <div className="meta-card">
-          <span className="meta-k">Duration:</span>
-          <span className="meta-v">
-            {currentAttempt?.duration_sec !== undefined && currentAttempt?.duration_sec !== null
-              ? `${currentAttempt.duration_sec.toFixed(2)}s`
-              : '--'}
-          </span>
-        </div>
-        <div className="meta-card">
-          <span className="meta-k">Provider:</span>
-          <span className="meta-v">
-            {('provider' in (currentAttempt || {}) && currentAttempt?.provider) || '--'}
-          </span>
-        </div>
-        <div className="meta-card">
-          <span className="meta-k">Model:</span>
-          <span className="meta-v">
-            {('model' in (currentAttempt || {}) && currentAttempt?.model) || '--'}
-          </span>
-        </div>
+      <div className="agent-metrics">
+        <span>Model: {('model' in (currentAttempt || {}) && currentAttempt?.model) || '--'}</span>
+        <span className="mono">
+          Duration:{' '}
+          {currentAttempt?.duration_sec !== undefined && currentAttempt?.duration_sec !== null
+            ? `${currentAttempt.duration_sec.toFixed(2)}s`
+            : '--'}
+        </span>
+        <span>Provider: {('provider' in (currentAttempt || {}) && currentAttempt?.provider) || '--'}</span>
+        <span className={`status-badge ${(currentAttempt?.status || 'waiting').toLowerCase()}`}>
+          {currentAttempt?.status?.toUpperCase() || 'QUEUED'}
+        </span>
       </div>
 
       {errorMsg && (
-        <div className="error-banner">
-          <span className="error-title">⚠ STAGE ERROR:</span>
-          <pre>{errorMsg}</pre>
+        <div className="inline-error" style={{ padding: '8px 12px', background: '#331c22', borderRadius: '4px' }}>
+          <strong>⚠ ERROR:</strong>
+          <pre style={{ marginTop: '4px' }}>{errorMsg}</pre>
         </div>
       )}
 
-      <div className="panel-output-section">
-        <div className="output-header">
-          <span>RAW AGENT OUTPUT / LOGS</span>
-          <div className="output-header-actions">
-            <span className="output-len">
-              {rawOutput ? `${rawOutput.length} characters` : 'No output'}
-            </span>
-            {rawOutput && (
-              <button
-                className={`copy-btn ${copied ? 'copied' : ''}`}
-                onClick={handleCopy}
-                title="Copy raw output to clipboard"
-              >
-                {copied ? '✓ Copied' : '📋 Copy'}
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="output-body">
-          {rawOutput ? (
-            <pre className="output-pre">{rawOutput}</pre>
-          ) : (
-            <div className="output-placeholder">No raw output recorded for this stage/attempt.</div>
-          )}
-        </div>
+      <div className="terminal-view">
+        {rawOutput ? (
+          <pre>{rawOutput}</pre>
+        ) : (
+          <div className="section-empty">No raw output recorded for this stage/attempt.</div>
+        )}
       </div>
-    </div>
+    </section>
   );
 };

@@ -42,6 +42,7 @@ class TestProviderTimeoutAndErrors(unittest.TestCase):
         self.assertEqual(res, "Planner spec response")
         mock_client.chat.completions.create.assert_called_once()
         self.assertEqual(mock_client.chat.completions.create.call_args[1]["timeout"], 30.0)
+        self.assertEqual(mock_client.chat.completions.create.call_args[1]["max_tokens"], 8192)
 
     @patch("orchestrator.providers.OpenAI")
     def test_openrouter_timeout_caught_and_wrapped(self, mock_openai_cls):

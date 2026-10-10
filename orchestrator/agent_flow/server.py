@@ -30,6 +30,7 @@ from orchestrator.repo_tools import (
     list_available_projects,
     set_active_project_path,
     resolve_repo_root,
+    WORKSPACE_ROOT,
 )
 
 app = FastAPI(
@@ -525,7 +526,7 @@ async def stream_run_events(run_id: str, request: Request):
 @app.get("/api/prompts/preview")
 async def preview_prompt_file(file: str):
     """
-    Safely load a referenced prompt markdown file under the active repository or pipeline root.
+    Safely load a referenced prompt markdown file under the active repository, agents, or workspace root.
     """
     clean_file = file.strip().lstrip("@file:").strip()
     if not clean_file:
@@ -533,20 +534,24 @@ async def preview_prompt_file(file: str):
 
     repo_root = get_repo_root()
     agents_root = AGENTS_ROOT
+    workspace_root = WORKSPACE_ROOT
 
-    # Attempt resolution relative to agents_root, then repo_root
+    # Attempt resolution relative to agents_root, repo_root, then workspace_root
     candidate_paths = [
         agents_root / clean_file,
         repo_root / clean_file,
+        workspace_root / clean_file,
     ]
 
     target_path = None
     for p in candidate_paths:
         try:
             resolved = p.resolve()
-            # Security guard: ensure resolved path is within agents_root or repo_root
+            # Security guard: ensure resolved path is within agents_root, repo_root, or workspace_root
             if resolved.is_file() and (
-                resolved.is_relative_to(agents_root.resolve()) or resolved.is_relative_to(repo_root.resolve())
+                resolved.is_relative_to(agents_root.resolve())
+                or resolved.is_relative_to(repo_root.resolve())
+                or resolved.is_relative_to(workspace_root.resolve())
             ):
                 target_path = resolved
                 break

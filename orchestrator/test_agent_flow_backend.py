@@ -632,6 +632,12 @@ class TestAgentFlowBackend(unittest.TestCase):
             self.assertEqual(res_prefix.status_code, 200)
             self.assertIn("# Test Prompt", res_prefix.json()["content"])
 
+            # Relative to workspace root
+            res_ws = self.client.get("/api/prompts/preview?file=pipeline/prompts/trayne_bug_triage.md")
+            if (events_module.AGENTS_ROOT.parent / "pipeline/prompts/trayne_bug_triage.md").exists():
+                self.assertEqual(res_ws.status_code, 200)
+                self.assertIn("trayne mvp bug triage", res_ws.json()["content"].lower())
+
             # 2. Non-existent file -> 404
             res_404 = self.client.get("/api/prompts/preview?file=pipeline/prompts/does_not_exist.md")
             self.assertEqual(res_404.status_code, 404)

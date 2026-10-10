@@ -16,351 +16,229 @@ export const PipelineFlow: React.FC<PipelineFlowProps> = ({
 }) => {
   if (!run) {
     return (
-      <div className="flow-empty-state">
-        <p>No active run selected. Select a run from the history sidebar.</p>
-      </div>
+      <section className="pipeline-section">
+        <div className="panel-empty">No active run selected. Select a run from the history sidebar.</div>
+      </section>
     );
   }
 
   const { stages } = run;
-  const fileOperations = run.files_changed?.operations || [];
-  const latestOps = fileOperations.slice(-4);
+  const stageOrder = ['planner', 'frontend', 'backend', 'tester', 'reviewer'] as const;
 
-  // Compute overall progress & active stage index
-  const stageOrder = ['planner', 'frontend', 'backend', 'tester', 'reviewer'];
-  let activeStepIndex = 0;
-  if (stages.reviewer.status === 'running' || stages.reviewer.status === 'complete') activeStepIndex = 4;
-  else if (stages.tester.status === 'running' || stages.tester.status === 'complete') activeStepIndex = 3;
-  else if (stages.backend.status === 'running' || stages.backend.status === 'complete') activeStepIndex = 2;
-  else if (stages.frontend.status === 'running' || stages.frontend.status === 'complete') activeStepIndex = 1;
-  else if (stages.planner.status === 'running' || stages.planner.status === 'complete') activeStepIndex = 0;
+  const stageIcons: Record<string, React.ReactNode> = {
+    planner: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+        <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+        <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+      </svg>
+    ),
+    frontend: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="m18 16 4-4-4-4" />
+        <path d="m6 8-4 4 4 4" />
+        <path d="m14.5 4-5 16" />
+      </svg>
+    ),
+    backend: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1" />
+        <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" />
+      </svg>
+    ),
+    tester: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
+        <path d="M6.453 15h11.094" />
+        <path d="M8.5 2h7" />
+      </svg>
+    ),
+    reviewer: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    ),
+  };
 
-  const progressPercent = Math.min(100, Math.round(((activeStepIndex + (stages[stageOrder[activeStepIndex] as keyof typeof stages].status === 'complete' ? 1 : 0.5)) / stageOrder.length) * 100));
+  const stageLabels: Record<string, string> = {
+    planner: 'Planner',
+    frontend: 'Frontend',
+    backend: 'Backend',
+    tester: 'Tester',
+    reviewer: 'Reviewer',
+  };
 
-  const renderStatusIcon = (status: StageStatus) => {
-    switch (status) {
-      case 'running':
-        return <span className="stage-status-icon running">⏳</span>;
-      case 'complete':
-        return <span className="stage-status-icon complete">✔</span>;
-      case 'failed':
-        return <span className="stage-status-icon failed">⚠</span>;
-      case 'blocked':
-        return <span className="stage-status-icon blocked">✖</span>;
-      case 'cancelled':
-        return <span className="stage-status-icon cancelled">⏹</span>;
-      default:
-        return <span className="stage-status-icon waiting">○</span>;
+  const getStageStatus = (stageName: typeof stageOrder[number]): StageStatus => {
+    return stages[stageName]?.status || 'waiting';
+  };
+
+  const getStageModel = (stageName: typeof stageOrder[number]): string => {
+    if (stageName === 'planner') {
+      const s = stages.planner;
+      return s?.model ? s.model.split('/').pop() || s.model : 'Gemini 2.5 Flash';
     }
+    const ms = stages[stageName];
+    if (ms?.attempts && ms.attempts.length > 0) {
+      const targetAttempt =
+        selectedAttemptIndex !== null && selectedStage === stageName && ms.attempts[selectedAttemptIndex]
+          ? ms.attempts[selectedAttemptIndex]
+          : ms.attempts[ms.attempts.length - 1];
+      const m = targetAttempt?.model;
+      if (m) return m.split('/').pop() || m;
+    }
+    return stageName === 'tester' ? 'DeepSeek V3' : stageName === 'reviewer' ? 'Claude Sonnet' : 'Gemini 2.5 Pro';
+  };
+
+  const getStageDuration = (stageName: typeof stageOrder[number]): number | null => {
+    if (stageName === 'planner') {
+      return stages.planner?.duration_sec ?? null;
+    }
+    const ms = stages[stageName];
+    if (ms?.attempts && ms.attempts.length > 0) {
+      const targetAttempt =
+        selectedAttemptIndex !== null && selectedStage === stageName && ms.attempts[selectedAttemptIndex]
+          ? ms.attempts[selectedAttemptIndex]
+          : ms.attempts[ms.attempts.length - 1];
+      return targetAttempt?.duration_sec ?? null;
+    }
+    return null;
+  };
+
+  const getAttemptsCount = (stageName: typeof stageOrder[number]): number => {
+    if (stageName === 'planner') return 1;
+    return stages[stageName]?.attempts?.length || 0;
   };
 
   const formatDuration = (sec?: number | null) => {
-    if (sec === undefined || sec === null) return '--';
+    if (sec === undefined || sec === null) return '—';
     return `${sec.toFixed(1)}s`;
   };
 
-  return (
-    <div className="pipeline-flow-container">
-      <div className="flow-title-bar">
-        <div className="flow-title-left">
-          <span className="flow-title">PIPELINE EXECUTION GRAPH</span>
-          <span className="flow-subtitle">Planner → Frontend → Backend → Tester → Reviewer</span>
-        </div>
-        <div className="flow-progress-meta">
-          <span className="flow-cycle-badge">
-            Cycle: {run.current_cycle || 1}/{run.max_review_cycles}
+  const renderStatusBadge = (status: StageStatus) => {
+    switch (status) {
+      case 'running':
+        return (
+          <span className="stage-state stage-running">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            Running
           </span>
-          <span className="flow-percent-text">{progressPercent}% Completed</span>
+        );
+      case 'complete':
+        return (
+          <span className="stage-state stage-complete">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            Complete
+          </span>
+        );
+      case 'failed':
+        return (
+          <span className="stage-state stage-failed">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" x2="12" y1="8" y2="12" />
+              <line x1="12" x2="12.01" y1="16" y2="16" />
+            </svg>
+            Failed
+          </span>
+        );
+      case 'blocked':
+        return (
+          <span className="stage-state stage-blocked">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+            </svg>
+            Blocked
+          </span>
+        );
+      default:
+        return (
+          <span className="stage-state stage-waiting">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+            </svg>
+            Queued
+          </span>
+        );
+    }
+  };
+
+  return (
+    <section className="pipeline-section" aria-labelledby="pipeline-title">
+      <div className="section-heading">
+        <h2 id="pipeline-title">Execution pipeline</h2>
+        <div className="cycle-picker">
+          <span>Review cycle</span>
+          {Array.from({ length: run.max_review_cycles || 3 }, (_, i) => i + 1).map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={c === (run.current_cycle || 1) ? 'is-active' : ''}
+              disabled={c > (run.current_cycle || 1)}
+              title={`Inspect review cycle ${c}`}
+            >
+              {c < (run.current_cycle || 1) ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                c
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Stage Progress Bar & Real-Time Indicator */}
-      <div className="stage-progress-bar-container">
-        <div
-          className="stage-progress-bar-fill"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
+      <ol className="pipeline-flow">
+        {stageOrder.map((stageName, idx) => {
+          const status = getStageStatus(stageName);
+          const isSelected = selectedStage === stageName;
+          const model = getStageModel(stageName);
+          const duration = getStageDuration(stageName);
+          const attemptsCount = getAttemptsCount(stageName);
 
-      {/* Real-Time File Stream / Activity Badges */}
-      {latestOps.length > 0 && (
-        <div className="active-file-stream-bar">
-          <div className="file-stream-label">
-            <span className="stream-pulse-dot" />
-            <span>REAL-TIME FILE OPERATIONS:</span>
-          </div>
-          <div className="file-stream-pills">
-            {latestOps.map((op, idx) => (
-              <span
-                key={idx}
-                className={`file-stream-pill ${op.status} ${op.op}`}
-                title={`Stage: ${op.stage} | ${op.status}`}
+          return (
+            <li key={stageName}>
+              <button
+                type="button"
+                className={`pipeline-node node-${status} ${isSelected ? 'is-selected' : ''}`}
+                onClick={() => onSelectStage(stageName)}
+                aria-pressed={isSelected}
               >
-                <span className="file-op-icon">{op.status === 'in_progress' ? '⚡' : '✔'}</span>
-                <span className="file-op-type">{op.op.toUpperCase()}:</span>
-                <span className="file-op-path">{op.path}</span>
-                {op.bytes !== undefined && op.bytes > 0 && (
-                  <span className="file-op-bytes">({(op.bytes / 1024).toFixed(1)} KB)</span>
-                )}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+                <div className="node-header">
+                  <span className="node-icon">{stageIcons[stageName]}</span>
+                  <span className="node-name">{stageLabels[stageName]}</span>
+                  <span className="node-number mono">0{idx + 1}</span>
+                </div>
 
-      <div className="flow-stages-row">
-        {/* 1. PLANNER */}
-        <div
-          className={`stage-card ${stages.planner.status} ${
-            selectedStage === 'planner' ? 'selected' : ''
-          }`}
-          onClick={() => onSelectStage('planner')}
-        >
-          <div className="stage-card-header">
-            <span className="stage-num">[1]</span>
-            <span className="stage-name">Planner</span>
-            {renderStatusIcon(stages.planner.status)}
-          </div>
-          <div className="stage-card-body">
-            <div className="stage-info-row">
-              <span className="info-key">Model:</span>
-              <span className="info-val" title={stages.planner.model || 'gemini-2.5-flash'}>
-                {stages.planner.model ? stages.planner.model.split('/').pop() : 'gemini-2.5-flash'}
-              </span>
-            </div>
-            <div className="stage-info-row">
-              <span className="info-key">Provider:</span>
-              <span className="info-val">{stages.planner.provider || 'openrouter'}</span>
-            </div>
-            <div className="stage-info-row">
-              <span className="info-key">Time:</span>
-              <span className="info-val">{formatDuration(stages.planner.duration_sec)}</span>
-            </div>
-          </div>
-          <div className="stage-card-footer">
-            <span className={`status-pill ${stages.planner.status}`}>
-              {stages.planner.status.toUpperCase()}
-            </span>
-          </div>
-        </div>
+                <span className="node-model" title={model}>{model}</span>
 
-        <div className="stage-connector">➔</div>
+                <div className="node-bottom">
+                  {renderStatusBadge(status)}
+                  <span className="node-duration mono">{formatDuration(duration)}</span>
+                </div>
 
-        {/* 2. FRONTEND */}
-        <div
-          className={`stage-card ${stages.frontend.status} ${
-            selectedStage === 'frontend' ? 'selected' : ''
-          }`}
-          onClick={() => onSelectStage('frontend')}
-        >
-          <div className="stage-card-header">
-            <span className="stage-num">[2]</span>
-            <span className="stage-name">Frontend</span>
-            {renderStatusIcon(stages.frontend.status)}
-          </div>
-          <div className="stage-card-body">
-            <div className="stage-info-row">
-              <span className="info-key">Model:</span>
-              <span className="info-val" title={stages.frontend.attempts[0]?.model || 'gemini-2.5-pro'}>
-                {stages.frontend.attempts[0]?.model
-                  ? stages.frontend.attempts[0].model.split('/').pop()
-                  : 'gemini-2.5-pro'}
-              </span>
-            </div>
-            <div className="stage-info-row">
-              <span className="info-key">Attempts:</span>
-              <span className="info-val">{stages.frontend.attempts.length || 0}</span>
-            </div>
-            {/* Multiple Attempts List */}
-            {stages.frontend.attempts.length > 0 && (
-              <div className="attempts-pill-list">
-                {stages.frontend.attempts.map((att, idx) => (
-                  <div
-                    key={idx}
-                    className={`attempt-pill ${att.status} ${
-                      selectedStage === 'frontend' && selectedAttemptIndex === idx ? 'active' : ''
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectStage('frontend', idx);
-                    }}
-                  >
-                    <span>{att.type === 'repair' ? `Repair C${att.cycle}` : 'Initial'}</span>
-                    <span className="att-time">{formatDuration(att.duration_sec)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="stage-card-footer">
-            <span className={`status-pill ${stages.frontend.status}`}>
-              {stages.frontend.status.toUpperCase()}
-            </span>
-          </div>
-        </div>
+                <div className="node-attempts">
+                  {attemptsCount > 1 ? `${attemptsCount} attempts` : '1 attempt'}
+                </div>
+              </button>
 
-        <div className="stage-connector">➔</div>
-
-        {/* 3. BACKEND */}
-        <div
-          className={`stage-card ${stages.backend.status} ${
-            selectedStage === 'backend' ? 'selected' : ''
-          }`}
-          onClick={() => onSelectStage('backend')}
-        >
-          <div className="stage-card-header">
-            <span className="stage-num">[3]</span>
-            <span className="stage-name">Backend</span>
-            {renderStatusIcon(stages.backend.status)}
-          </div>
-          <div className="stage-card-body">
-            <div className="stage-info-row">
-              <span className="info-key">Model:</span>
-              <span className="info-val" title={stages.backend.attempts[0]?.model || 'gemini-2.5-pro'}>
-                {stages.backend.attempts[0]?.model
-                  ? stages.backend.attempts[0].model.split('/').pop()
-                  : 'gemini-2.5-pro'}
-              </span>
-            </div>
-            <div className="stage-info-row">
-              <span className="info-key">Attempts:</span>
-              <span className="info-val">{stages.backend.attempts.length || 0}</span>
-            </div>
-            {stages.backend.attempts.length > 0 && (
-              <div className="attempts-pill-list">
-                {stages.backend.attempts.map((att, idx) => (
-                  <div
-                    key={idx}
-                    className={`attempt-pill ${att.status} ${
-                      selectedStage === 'backend' && selectedAttemptIndex === idx ? 'active' : ''
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectStage('backend', idx);
-                    }}
-                  >
-                    <span>{att.type === 'repair' ? `Repair C${att.cycle}` : 'Initial'}</span>
-                    <span className="att-time">{formatDuration(att.duration_sec)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="stage-card-footer">
-            <span className={`status-pill ${stages.backend.status}`}>
-              {stages.backend.status.toUpperCase()}
-            </span>
-          </div>
-        </div>
-
-        <div className="stage-connector">➔</div>
-
-        {/* 4. TESTER */}
-        <div
-          className={`stage-card ${stages.tester.status} ${
-            selectedStage === 'tester' ? 'selected' : ''
-          }`}
-          onClick={() => onSelectStage('tester')}
-        >
-          <div className="stage-card-header">
-            <span className="stage-num">[4]</span>
-            <span className="stage-name">Tester</span>
-            {renderStatusIcon(stages.tester.status)}
-          </div>
-          <div className="stage-card-body">
-            <div className="stage-info-row">
-              <span className="info-key">Model:</span>
-              <span className="info-val" title={stages.tester.attempts[0]?.model || 'deepseek-v4-flash'}>
-                {stages.tester.attempts[0]?.model
-                  ? stages.tester.attempts[0].model.split('/').pop()
-                  : 'deepseek-v4-flash'}
-              </span>
-            </div>
-            <div className="stage-info-row">
-              <span className="info-key">Runs:</span>
-              <span className="info-val">{stages.tester.attempts.length || 0}</span>
-            </div>
-            {stages.tester.attempts.length > 0 && (
-              <div className="attempts-pill-list">
-                {stages.tester.attempts.map((att, idx) => (
-                  <div
-                    key={idx}
-                    className={`attempt-pill ${att.status} ${
-                      selectedStage === 'tester' && selectedAttemptIndex === idx ? 'active' : ''
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectStage('tester', idx);
-                    }}
-                  >
-                    <span>Cycle {att.cycle}</span>
-                    <span className="att-time">{formatDuration(att.duration_sec)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="stage-card-footer">
-            <span className={`status-pill ${stages.tester.status}`}>
-              {stages.tester.status.toUpperCase()}
-            </span>
-          </div>
-        </div>
-
-        <div className="stage-connector">➔</div>
-
-        {/* 5. REVIEWER */}
-        <div
-          className={`stage-card ${stages.reviewer.status} ${
-            selectedStage === 'reviewer' ? 'selected' : ''
-          }`}
-          onClick={() => onSelectStage('reviewer')}
-        >
-          <div className="stage-card-header">
-            <span className="stage-num">[5]</span>
-            <span className="stage-name">Reviewer</span>
-            {renderStatusIcon(stages.reviewer.status)}
-          </div>
-          <div className="stage-card-body">
-            <div className="stage-info-row">
-              <span className="info-key">Model:</span>
-              <span className="info-val" title={stages.reviewer.attempts[0]?.model || 'claude-sonnet-5'}>
-                {stages.reviewer.attempts[0]?.model
-                  ? stages.reviewer.attempts[0].model.split('/').pop()
-                  : 'claude-sonnet-5'}
-              </span>
-            </div>
-            <div className="stage-info-row">
-              <span className="info-key">Verdict:</span>
-              <span className="info-val verdict-tag">{run.review?.verdict || '--'}</span>
-            </div>
-            {stages.reviewer.attempts.length > 0 && (
-              <div className="attempts-pill-list">
-                {stages.reviewer.attempts.map((att, idx) => (
-                  <div
-                    key={idx}
-                    className={`attempt-pill ${att.status} ${
-                      selectedStage === 'reviewer' && selectedAttemptIndex === idx ? 'active' : ''
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectStage('reviewer', idx);
-                    }}
-                  >
-                    <span>Cycle {att.cycle}</span>
-                    <span className="att-time">{formatDuration(att.duration_sec)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="stage-card-footer">
-            <span className={`status-pill ${stages.reviewer.status}`}>
-              {stages.reviewer.status.toUpperCase()}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+              {idx < stageOrder.length - 1 && (
+                <span className="flow-connector" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 };

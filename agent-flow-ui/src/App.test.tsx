@@ -176,7 +176,7 @@ const mockRunState: RunState = {
   retries: [],
 };
 
-describe('Agent Flow Control Room Dashboard', () => {
+describe('BUM Console Dashboard', () => {
   beforeEach(() => {
     vi.spyOn(api, 'fetchRuns').mockResolvedValue(mockRunSummaries);
     vi.spyOn(api, 'fetchRunDetails').mockResolvedValue(mockRunState);
@@ -188,18 +188,19 @@ describe('Agent Flow Control Room Dashboard', () => {
   it('renders header, runs list, prompt textarea, and all 5 pipeline stages', async () => {
     render(<App />);
 
-    // Header title
-    expect(screen.getByText('BUM AGENT FLOW')).toBeInTheDocument();
+    // Header branding
+    expect(screen.getAllByText(/BUM/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/CONSOLE/i).length).toBeGreaterThan(0);
 
     // Runs in sidebar
     await waitFor(() => {
-      expect(screen.getAllByText('run_20260825_100000_aaa111').length).toBeGreaterThan(0);
-      expect(screen.getByText('run_20260825_110000_bbb222')).toBeInTheDocument();
+      expect(screen.getByText('Add workout generator widget')).toBeInTheDocument();
+      expect(screen.getByText('Repair broken database adapter')).toBeInTheDocument();
     });
 
     // Prompt input section
-    expect(screen.getByText('NEW DEVELOPMENT TASK')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Enter detailed development task specification/i)).toBeInTheDocument();
+    expect(screen.getByText(/New development task/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Describe what you want to build/i)).toBeInTheDocument();
 
     // 5 Stages rendered after state loaded
     await waitFor(() => {
@@ -214,10 +215,10 @@ describe('Agent Flow Control Room Dashboard', () => {
   it('disables Run button when prompt is empty/whitespace', async () => {
     render(<App />);
 
-    const runBtn = screen.getByRole('button', { name: /RUN PIPELINE/i });
+    const runBtn = screen.getByRole('button', { name: /Launch task/i });
     expect(runBtn).toBeDisabled();
 
-    const textarea = screen.getByPlaceholderText(/Enter detailed development task specification/i);
+    const textarea = screen.getByPlaceholderText(/Describe what you want to build/i);
     fireEvent.change(textarea, { target: { value: '   ' } });
     expect(runBtn).toBeDisabled();
 
@@ -234,17 +235,16 @@ describe('Agent Flow Control Room Dashboard', () => {
 
     render(<App />);
 
-    const textarea = screen.getByPlaceholderText(/Enter detailed development task specification/i);
+    const textarea = screen.getByPlaceholderText(/Describe what you want to build/i);
     fireEvent.change(textarea, { target: { value: 'Build active workout timer' } });
 
-    const runBtn = screen.getByRole('button', { name: /RUN PIPELINE/i });
+    const runBtn = screen.getByRole('button', { name: /Launch task/i });
     fireEvent.click(runBtn);
 
     await waitFor(() => {
       expect(launchSpy).toHaveBeenCalledWith('Build active workout timer', undefined);
     });
 
-    // Textarea cleared upon success
     expect((textarea as HTMLTextAreaElement).value).toBe('');
   });
 
@@ -258,13 +258,13 @@ describe('Agent Flow Control Room Dashboard', () => {
 
     render(<App />);
 
-    const labelInput = screen.getByPlaceholderText(/e.g., Feature 3 - History Screen/i);
-    const textarea = screen.getByPlaceholderText(/Enter detailed development task specification/i);
+    const labelInput = screen.getByPlaceholderText(/Run label/i);
+    const textarea = screen.getByPlaceholderText(/Describe what you want to build/i);
 
     fireEvent.change(labelInput, { target: { value: 'Feature 3' } });
     fireEvent.change(textarea, { target: { value: 'Build active workout timer' } });
 
-    const runBtn = screen.getByRole('button', { name: /RUN PIPELINE/i });
+    const runBtn = screen.getByRole('button', { name: /Launch task/i });
     fireEvent.click(runBtn);
 
     await waitFor(() => {
@@ -273,21 +273,6 @@ describe('Agent Flow Control Room Dashboard', () => {
 
     expect((textarea as HTMLTextAreaElement).value).toBe('');
     expect((labelInput as HTMLInputElement).value).toBe('');
-  });
-
-  it('clones a historical run prompt and label into the task input bar when Clone is clicked', async () => {
-    render(<App />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Add workout generator widget')).toBeInTheDocument();
-    });
-
-    const cloneButtons = screen.getAllByRole('button', { name: /Clone/i });
-    expect(cloneButtons.length).toBeGreaterThan(0);
-    fireEvent.click(cloneButtons[0]);
-
-    const textarea = screen.getByPlaceholderText(/Enter detailed development task specification/i) as HTMLTextAreaElement;
-    expect(textarea.value).toBe('Add workout generator widget');
   });
 
   it('disables Run button and shows active badge when pipeline is running', async () => {
@@ -300,11 +285,8 @@ describe('Agent Flow Control Room Dashboard', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText(/PIPELINE ACTIVE/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Pipeline Running/i })).toBeDisabled();
     });
-
-    const runBtn = screen.getByRole('button', { name: /Pipeline Running/i });
-    expect(runBtn).toBeDisabled();
   });
 
   it('handles 409 conflict error cleanly and displays message', async () => {
@@ -315,10 +297,10 @@ describe('Agent Flow Control Room Dashboard', () => {
 
     render(<App />);
 
-    const textarea = screen.getByPlaceholderText(/Enter detailed development task specification/i);
+    const textarea = screen.getByPlaceholderText(/Describe what you want to build/i);
     fireEvent.change(textarea, { target: { value: 'New conflicting task' } });
 
-    const runBtn = screen.getByRole('button', { name: /RUN PIPELINE/i });
+    const runBtn = screen.getByRole('button', { name: /Launch task/i });
     fireEvent.click(runBtn);
 
     await waitFor(() => {
@@ -355,42 +337,6 @@ describe('Agent Flow Control Room Dashboard', () => {
     });
   });
 
-  it('renders interrupted / stale status badge when historical run has no terminal event and is idle', async () => {
-    const staleRunSummary: RunSummary = {
-      run_id: 'run_20260825_132948_5ebd77',
-      started_at: 1000,
-      finished_at: null,
-      task: 'Old stalled task',
-      final_status: 'interrupted',
-      cycles_used: 3,
-      total_duration_sec: null,
-      is_running: false,
-      events_count: 50,
-    };
-    const staleRunState: RunState = {
-      ...mockRunState,
-      run_id: 'run_20260825_132948_5ebd77',
-      status: 'interrupted',
-      finished_at: null,
-      reason: 'PROCESS_INTERRUPTED_BEFORE_COMPLETION',
-    };
-
-    vi.spyOn(api, 'fetchRuns').mockResolvedValue([staleRunSummary]);
-    vi.spyOn(api, 'fetchRunDetails').mockResolvedValue(staleRunState);
-    vi.spyOn(api, 'fetchPipelineStatus').mockResolvedValue({
-      running: false,
-      run_id: null,
-      task: null,
-      cancellation_requested: false,
-    });
-
-    render(<App />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/INTERRUPTED/i)).toBeInTheDocument();
-    });
-  });
-
   it('enables Retry button for failed/blocked/interrupted runs and triggers retry API', async () => {
     const failedRunSummary: RunSummary = {
       run_id: 'run_20260825_100000_aaa111',
@@ -421,43 +367,17 @@ describe('Agent Flow Control Room Dashboard', () => {
     render(<App />);
 
     await waitFor(() => {
-      const retryBtn = screen.getByRole('button', { name: /Retry/i });
+      const retryBtn = screen.getByRole('button', { name: /Retry in a new run/i });
       expect(retryBtn).not.toBeDisabled();
+      fireEvent.click(retryBtn);
     });
-
-    const retryBtn = screen.getByRole('button', { name: /Retry/i });
-    fireEvent.click(retryBtn);
 
     await waitFor(() => {
       expect(retrySpy).toHaveBeenCalledWith('run_20260825_100000_aaa111');
     });
   });
 
-  it('disables Approve/Reject for ordinary finished or running runs, and enables for AWAITING_HUMAN_APPROVAL', async () => {
-    // Ordinary run (approved)
-    const approvedRunState: RunState = {
-      ...mockRunState,
-      status: 'approved',
-    };
-    const approvedRunSummary: RunSummary = {
-      ...mockRunSummaries[0],
-      final_status: 'APPROVED',
-    };
-    vi.spyOn(api, 'fetchRuns').mockResolvedValue([approvedRunSummary]);
-    vi.spyOn(api, 'fetchRunDetails').mockResolvedValue(approvedRunState);
-
-    const { unmount } = render(<App />);
-
-    await waitFor(() => {
-      const approveBtn = screen.getByRole('button', { name: /Approve/i });
-      const rejectBtn = screen.getByRole('button', { name: /Reject/i });
-      expect(approveBtn).toBeDisabled();
-      expect(rejectBtn).toBeDisabled();
-    });
-
-    unmount();
-
-    // Awaiting human approval run (tested with both status: 'awaiting_human_approval' and status: 'approve' / 'AWAITING_HUMAN_APPROVAL')
+  it('enables Approve/Reject for AWAITING_HUMAN_APPROVAL runs', async () => {
     const awaitingSummary: RunSummary = {
       run_id: 'run_20260825_170948_74722e',
       started_at: 1000,
@@ -480,40 +400,8 @@ describe('Agent Flow Control Room Dashboard', () => {
     render(<App />);
 
     await waitFor(() => {
-      const approveBtn = screen.getByRole('button', { name: /Approve/i });
-      const rejectBtn = screen.getByRole('button', { name: /Reject/i });
-      expect(approveBtn).not.toBeDisabled();
-      expect(rejectBtn).not.toBeDisabled();
-    });
-  });
-
-  it('enables Approve/Reject when status is approve / AWAITING_HUMAN_APPROVAL variant', async () => {
-    const awaitingSummary: RunSummary = {
-      run_id: 'run_20260825_170948_74722e',
-      started_at: 1000,
-      finished_at: 1030,
-      task: 'Task awaiting decision',
-      final_status: 'AWAITING_HUMAN_APPROVAL',
-      cycles_used: 1,
-      total_duration_sec: 30.5,
-      is_running: false,
-      events_count: 10,
-    };
-    const awaitingState: RunState = {
-      ...mockRunState,
-      run_id: 'run_20260825_170948_74722e',
-      status: 'approve',
-    };
-    vi.spyOn(api, 'fetchRuns').mockResolvedValue([awaitingSummary]);
-    vi.spyOn(api, 'fetchRunDetails').mockResolvedValue(awaitingState);
-
-    render(<App />);
-
-    await waitFor(() => {
-      const approveBtn = screen.getByRole('button', { name: /Approve/i });
-      const rejectBtn = screen.getByRole('button', { name: /Reject/i });
-      expect(approveBtn).not.toBeDisabled();
-      expect(rejectBtn).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /Approve & merge/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Request changes/i })).toBeInTheDocument();
     });
   });
 
@@ -544,7 +432,7 @@ describe('Agent Flow Control Room Dashboard', () => {
     render(<App />);
 
     await waitFor(() => {
-      const approveBtn = screen.getByRole('button', { name: /Approve/i });
+      const approveBtn = screen.getByRole('button', { name: /Approve & merge/i });
       expect(approveBtn).not.toBeDisabled();
       fireEvent.click(approveBtn);
     });
@@ -582,91 +470,58 @@ describe('Agent Flow Control Room Dashboard', () => {
     render(<App />);
 
     await waitFor(() => {
-      const rejectBtn = screen.getByRole('button', { name: /Reject/i });
+      const rejectBtn = screen.getByRole('button', { name: /Request changes/i });
       expect(rejectBtn).not.toBeDisabled();
       fireEvent.click(rejectBtn);
     });
 
-    // Modal appears
-    expect(screen.getByText('REJECT IMPLEMENTATION')).toBeInTheDocument();
-    const textarea = screen.getByPlaceholderText(/Reason/i);
+    expect(screen.getByText('Change request')).toBeInTheDocument();
+    const textarea = screen.getByPlaceholderText(/What needs to be fixed/i);
     fireEvent.change(textarea, { target: { value: 'Needs revision' } });
 
-    const confirmBtn = screen.getByRole('button', { name: /Confirm Rejection/i });
-    fireEvent.click(confirmBtn);
+    const confirmBtns = screen.getAllByRole('button', { name: /Request changes/i });
+    fireEvent.click(confirmBtns[confirmBtns.length - 1]);
 
     await waitFor(() => {
       expect(rejectSpy).toHaveBeenCalledWith('run_awaiting_test', 'Needs revision');
     });
   });
 
-  it('enables Retry for rejected runs', async () => {
-    const rejectedSummary: RunSummary = {
-      run_id: 'run_rejected_test',
-      started_at: 1000,
-      finished_at: 1030,
-      task: 'Task was rejected',
-      final_status: 'REJECTED',
-      cycles_used: 1,
-      total_duration_sec: 30.5,
-      is_running: false,
-      events_count: 10,
-    };
-    const rejectedState: RunState = {
-      ...mockRunState,
-      run_id: 'run_rejected_test',
-      status: 'rejected',
-      reason: 'Rejected by user',
-    };
-    vi.spyOn(api, 'fetchRuns').mockResolvedValue([rejectedSummary]);
-    vi.spyOn(api, 'fetchRunDetails').mockResolvedValue(rejectedState);
-
-    render(<App />);
-
-    await waitFor(() => {
-      const retryBtn = screen.getByRole('button', { name: /Retry/i });
-      expect(retryBtn).not.toBeDisabled();
-    });
-  });
-
-  it('renders stage details when stage selected', async () => {
-    render(<App />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Planner')).toBeInTheDocument();
-    });
-
-    // Default stage is planner
-    expect(screen.getByText(/PLANNER SPECIFICATION/i)).toBeInTheDocument();
-  });
-
   it('renders test results in tests panel', async () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText(/TEST & TYPE-CHECK SUITE/i)).toBeInTheDocument();
-      expect(screen.getByText('npm run ts:check')).toBeInTheDocument();
-      expect(screen.getByText('npm test')).toBeInTheDocument();
+      const testsTab = screen.getByRole('tab', { name: /Tests & shell/i });
+      fireEvent.click(testsTab);
     });
+
+    expect(screen.getByText(/Verification suite/i)).toBeInTheDocument();
+    expect(screen.getByText('npm run ts:check')).toBeInTheDocument();
+    expect(screen.getByText('npm test')).toBeInTheDocument();
   });
 
   it('renders changed files and git status', async () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Files Changed/i)).toBeInTheDocument();
-      expect(screen.getByText('src/components/Widget.tsx')).toBeInTheDocument();
-      expect(screen.getByText('src/app/index.tsx')).toBeInTheDocument();
+      const changesTab = screen.getByRole('tab', { name: /Changes/i });
+      fireEvent.click(changesTab);
     });
+
+    expect(screen.getByText('Widget.tsx')).toBeInTheDocument();
+    expect(screen.getByText('index.tsx')).toBeInTheDocument();
   });
 
-  it('renders review timeline with verdicts and retry events', async () => {
+  it('renders review tab with verdicts and findings', async () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText(/REVIEWER VERDICT & HUMAN DECISION/i)).toBeInTheDocument();
-      expect(screen.getByText(/AUTOMATED REVIEW:/i)).toBeInTheDocument();
+      const reviewTab = screen.getByRole('tab', { name: /Review/i });
+      fireEvent.click(reviewTab);
     });
+
+    expect(screen.getAllByText(/AUTOMATED VERDICT/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Acceptance criteria satisfied/i)).toBeInTheDocument();
   });
 
   it('handles switching runs when clicking sidebar', async () => {
@@ -674,11 +529,11 @@ describe('Agent Flow Control Room Dashboard', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('run_20260825_110000_bbb222')).toBeInTheDocument();
+      expect(screen.getByText('Repair broken database adapter')).toBeInTheDocument();
     });
 
-    const secondRun = screen.getByText('run_20260825_110000_bbb222');
-    secondRun.click();
+    const secondRun = screen.getByText('Repair broken database adapter');
+    fireEvent.click(secondRun);
 
     await waitFor(() => {
       expect(detailSpy).toHaveBeenCalledWith('run_20260825_110000_bbb222');

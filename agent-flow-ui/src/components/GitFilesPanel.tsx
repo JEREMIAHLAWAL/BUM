@@ -20,16 +20,18 @@ export const GitFilesPanel: React.FC<GitFilesPanelProps> = ({ run }) => {
 
   return (
     <div className="section-card git-files-panel">
-      <div className="section-header tabs-header">
-        <div className="tab-buttons">
+      <div className="section-header" style={{ padding: '4px 8px' }}>
+        <div style={{ display: 'flex', gap: '4px' }}>
           <button
-            className={`tab-btn ${activeTab === 'files' ? 'active' : ''}`}
+            type="button"
+            className={`quiet-button ${activeTab === 'files' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('files')}
           >
             📁 Files Changed ({totalFiles})
           </button>
           <button
-            className={`tab-btn ${activeTab === 'git' ? 'active' : ''}`}
+            type="button"
+            className={`quiet-button ${activeTab === 'git' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('git')}
           >
             🌿 Git Diff & Untracked
@@ -37,27 +39,24 @@ export const GitFilesPanel: React.FC<GitFilesPanelProps> = ({ run }) => {
         </div>
       </div>
 
-      <div className="tab-content-body">
+      <div style={{ padding: '10px 12px' }}>
         {activeTab === 'files' ? (
-          <div className="files-breakdown">
-            {/* Live Operations Activity Bar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Real-time file ops */}
             {operations.length > 0 && (
-              <div className="live-file-ops-timeline">
-                <div className="live-ops-header">
-                  <span className="live-ops-title">⚡ REAL-TIME FILE MODIFICATION LOG</span>
-                  <span className="live-ops-count">{operations.length} operations</span>
+              <div style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface-raised)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  <span>⚡ REAL-TIME FILE MODIFICATION LOG</span>
+                  <span>{operations.length} operations</span>
                 </div>
-                <div className="live-ops-list">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   {operations.map((op, idx) => (
-                    <div key={idx} className={`live-op-row ${op.status}`}>
-                      <span className="live-op-status-badge">
-                        {op.status === 'in_progress' ? '⏳ WRITING' : '✔ VERIFIED'}
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px' }}>
+                      <span className={`status-badge ${op.status === 'in_progress' ? 'running' : 'approved'}`}>
+                        {op.status === 'in_progress' ? 'WRITING' : 'VERIFIED'}
                       </span>
-                      <span className="live-op-stage-tag">{op.stage.toUpperCase()}</span>
-                      <code className="live-op-path">{op.path}</code>
-                      {op.bytes !== undefined && op.bytes > 0 && (
-                        <span className="live-op-bytes">{(op.bytes / 1024).toFixed(1)} KB</span>
-                      )}
+                      <span className="mono" style={{ color: 'var(--text-muted)' }}>{op.stage.toUpperCase()}</span>
+                      <code style={{ color: 'var(--text-secondary)' }}>{op.path}</code>
                     </div>
                   ))}
                 </div>
@@ -67,76 +66,75 @@ export const GitFilesPanel: React.FC<GitFilesPanelProps> = ({ run }) => {
             {totalFiles === 0 && operations.length === 0 ? (
               <div className="section-empty">No file modifications recorded in this run.</div>
             ) : (
-              <div className="files-categories-grid">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {/* Created */}
-                <div className="file-category-block created-block">
-                  <div className="cat-title">
-                    <span className="cat-dot created" />
-                    <span>CREATED ({created.length})</span>
+                <div style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface-raised)' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 650, color: 'var(--success)', marginBottom: '4px' }}>
+                    CREATED ({created.length})
                   </div>
                   {created.length > 0 ? (
-                    <ul className="file-path-list">
+                    <ul style={{ listStyle: 'none', padding: 0 }}>
                       {created.map((f, i) => (
-                        <li key={i}>
-                          <code>{f}</code>
+                        <li key={i} style={{ marginBottom: '2px' }}>
+                          <code style={{ fontSize: '10px' }}>{f}</code>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <span className="empty-cat">None</span>
+                    <span className="muted" style={{ fontSize: '10px' }}>None</span>
                   )}
                 </div>
 
                 {/* Modified */}
-                <div className="file-category-block modified-block">
-                  <div className="cat-title">
-                    <span className="cat-dot modified" />
-                    <span>MODIFIED ({modified.length})</span>
+                <div style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface-raised)' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 650, color: 'var(--warning)', marginBottom: '4px' }}>
+                    MODIFIED ({modified.length})
                   </div>
                   {modified.length > 0 ? (
-                    <ul className="file-path-list">
+                    <ul style={{ listStyle: 'none', padding: 0 }}>
                       {modified.map((f, i) => (
-                        <li key={i}>
-                          <code>{f}</code>
+                        <li key={i} style={{ marginBottom: '2px' }}>
+                          <code style={{ fontSize: '10px' }}>{f}</code>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <span className="empty-cat">None</span>
+                    <span className="muted" style={{ fontSize: '10px' }}>None</span>
                   )}
                 </div>
 
                 {/* Deleted */}
-                <div className="file-category-block deleted-block">
-                  <div className="cat-title">
-                    <span className="cat-dot deleted" />
-                    <span>DELETED ({deleted.length})</span>
+                <div style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface-raised)' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 650, color: 'var(--error)', marginBottom: '4px' }}>
+                    DELETED ({deleted.length})
                   </div>
                   {deleted.length > 0 ? (
-                    <ul className="file-path-list">
+                    <ul style={{ listStyle: 'none', padding: 0 }}>
                       {deleted.map((f, i) => (
-                        <li key={i}>
-                          <code>{f}</code>
+                        <li key={i} style={{ marginBottom: '2px' }}>
+                          <code style={{ fontSize: '10px' }}>{f}</code>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <span className="empty-cat">None</span>
+                    <span className="muted" style={{ fontSize: '10px' }}>None</span>
                   )}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="git-diff-view">
-            <div className="diff-stat-card">
-              <span className="stat-label">GIT DIFF STAT:</span>
-              <pre className="diff-pre">{git?.diff_stat || 'No diff stat available.'}</pre>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface-raised)' }}>
+              <span className="eyebrow">GIT DIFF STAT</span>
+              <pre className="mono" style={{ fontSize: '10px', marginTop: '4px', color: 'var(--text-secondary)' }}>
+                {git?.diff_stat || 'No diff stat available.'}
+              </pre>
             </div>
 
-            {/* Interactive Code Diff Viewer */}
-            <div className="diff-stat-card">
-              <span className="stat-label">INTERACTIVE CODE DIFF:</span>
+            {/* Interactive code diff */}
+            <div style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: '#0d1015' }}>
+              <span className="eyebrow">INTERACTIVE CODE DIFF</span>
               {(() => {
                 const diffCmd = git?.git_results?.find((g) => g.command && g.command.includes('git diff') && !g.command.includes('--stat'));
                 const diffText = diffCmd?.stdout || '';
@@ -145,18 +143,25 @@ export const GitFilesPanel: React.FC<GitFilesPanelProps> = ({ run }) => {
                 }
                 const lines = diffText.split('\n');
                 return (
-                  <div className="interactive-diff-box">
+                  <div style={{ maxHeight: '200px', overflow: 'auto', marginTop: '6px' }}>
                     {lines.map((line, idx) => {
-                      let type = 'context';
-                      if (line.startsWith('diff --git') || line.startsWith('index ')) type = 'header';
-                      else if (line.startsWith('@@')) type = 'chunk';
-                      else if (line.startsWith('+') && !line.startsWith('+++')) type = 'add';
-                      else if (line.startsWith('-') && !line.startsWith('---')) type = 'del';
+                      let color = 'var(--text-secondary)';
+                      let bg = 'transparent';
+                      if (line.startsWith('+') && !line.startsWith('+++')) {
+                        color = 'var(--success)';
+                        bg = 'rgba(138, 210, 173, 0.08)';
+                      } else if (line.startsWith('-') && !line.startsWith('---')) {
+                        color = 'var(--error)';
+                        bg = 'rgba(237, 149, 151, 0.08)';
+                      } else if (line.startsWith('@@')) {
+                        color = 'var(--accent)';
+                        bg = 'rgba(138, 217, 189, 0.06)';
+                      }
 
                       return (
-                        <div key={idx} className={`diff-line diff-${type}`}>
-                          <span className="diff-ln">{idx + 1}</span>
-                          <span className="diff-content">{line}</span>
+                        <div key={idx} style={{ background: bg, padding: '1px 4px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+                          <span style={{ color: 'var(--text-muted)', marginRight: '6px', userSelect: 'none' }}>{idx + 1}</span>
+                          <span style={{ color }}>{line}</span>
                         </div>
                       );
                     })}
@@ -166,12 +171,12 @@ export const GitFilesPanel: React.FC<GitFilesPanelProps> = ({ run }) => {
             </div>
 
             {git?.untracked_files && git.untracked_files.length > 0 && (
-              <div className="untracked-card">
-                <span className="untracked-label">UNTRACKED FILES (??):</span>
-                <ul className="untracked-list">
+              <div style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface-raised)' }}>
+                <span className="eyebrow" style={{ color: 'var(--warning)' }}>UNTRACKED FILES</span>
+                <ul style={{ listStyle: 'none', padding: 0, marginTop: '4px' }}>
                   {git.untracked_files.map((uf, idx) => (
                     <li key={idx}>
-                      <code>{uf}</code>
+                      <code style={{ fontSize: '10px' }}>{uf}</code>
                     </li>
                   ))}
                 </ul>
@@ -179,20 +184,23 @@ export const GitFilesPanel: React.FC<GitFilesPanelProps> = ({ run }) => {
             )}
 
             {git?.git_results && git.git_results.length > 0 && (
-              <div className="full-git-toggle-area">
+              <div>
                 <button
-                  className="btn-toggle-git"
+                  type="button"
+                  className="quiet-button"
                   onClick={() => setShowFullGit(!showFullGit)}
                 >
                   {showFullGit ? '▲ Hide Full Git Output' : '▼ Show Full Git Command Output'}
                 </button>
 
                 {showFullGit && (
-                  <div className="full-git-list">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
                     {git.git_results.map((gres, i) => (
-                      <div key={i} className="raw-git-item">
-                        <span className="git-cmd-title">$ {gres.command}</span>
-                        <pre className="git-raw-pre">{gres.stdout || gres.stderr || '(empty)'}</pre>
+                      <div key={i} style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: '#0d1015' }}>
+                        <span className="mono" style={{ fontSize: '10px', color: 'var(--accent)' }}>$ {gres.command}</span>
+                        <pre style={{ fontSize: '10px', marginTop: '4px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                          {gres.stdout || gres.stderr || '(empty)'}
+                        </pre>
                       </div>
                     ))}
                   </div>
