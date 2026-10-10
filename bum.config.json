@@ -1,0 +1,49 @@
+{
+  "name": "BUM (Multi-Agent SWE Orchestrator)",
+  "project_type": "python",
+  "version": "1.0.0",
+  "description": "Standalone Generalized Multi-Agent SWE Orchestrator",
+  "rules": {
+    "forbidden_imports": [],
+    "required_packages": [
+      "fastapi",
+      "pydantic",
+      "uvicorn"
+    ],
+    "forbidden_tokens": [],
+    "allowed_write_roots": [
+      "orchestrator/",
+      "planner/",
+      "frontend/",
+      "backend/",
+      "tester/",
+      "reviewer/",
+      "pipeline/",
+      "agent-flow-ui/src/"
+    ],
+    "prohibited_files": [
+      ".env",
+      "deploy/bum-agent-flow.service"
+    ]
+  },
+  "verification": {
+    "typecheck_cmd": "python -m unittest discover -s orchestrator -p 'test_*.py'",
+    "test_cmd": "python -m unittest discover -s orchestrator -p 'test_*.py'",
+    "lint_cmd": ""
+  },
+  "context": {
+    "type_skeleton_paths": [
+      "orchestrator/manifest.py",
+      "orchestrator/events.py",
+      "orchestrator/agent_flow/repository.py"
+    ],
+    "domain_paths": [
+      "orchestrator/",
+      "planner/",
+      "backend/",
+      "frontend/",
+      "tester/",
+      "reviewer/"
+    ]
+  }
+}
