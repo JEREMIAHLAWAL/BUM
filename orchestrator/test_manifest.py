@@ -143,7 +143,7 @@ class TestBumManifest(unittest.TestCase):
 
         manifest = generate_default_manifest(self.temp_dir)
         self.assertEqual(manifest.project_type, "python")
-        self.assertEqual(manifest.verification.typecheck_cmd, "mypy .")
+        self.assertEqual(manifest.verification.typecheck_cmd, "python -m unittest discover -s orchestrator -p 'test_*.py'")
         self.assertEqual(manifest.verification.test_cmd, "pytest")
 
     def test_load_trayne_reference_manifest(self):

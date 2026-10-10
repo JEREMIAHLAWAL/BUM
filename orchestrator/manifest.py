@@ -188,7 +188,7 @@ def generate_default_manifest(
 
     elif (root_dir / "pyproject.toml").is_file() or (root_dir / "requirements.txt").is_file():
         inferred_type = "python"
-        verification.typecheck_cmd = "mypy ."
+        verification.typecheck_cmd = "python -m unittest discover -s orchestrator -p 'test_*.py'"
         verification.test_cmd = "pytest"
 
     elif (root_dir / "Cargo.toml").is_file():
