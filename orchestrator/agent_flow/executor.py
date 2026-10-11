@@ -92,6 +92,27 @@ class PipelineExecutionManager:
                 target_func(clean_task, assigned_run_id, token)
             except Exception as exc:
                 print(f"[ERROR] Pipeline worker execution failed for {assigned_run_id}: {exc}")
+                try:
+                    from orchestrator.events import EventLogger, set_current_logger, emit_event
+                    logger = EventLogger(run_id=assigned_run_id)
+                    set_current_logger(logger)
+                    emit_event(
+                        event="stage_failed",
+                        payload={
+                            "error_type": "UNCAUGHT_EXCEPTION",
+                            "error": str(exc),
+                            "exception_class": exc.__class__.__name__,
+                        },
+                    )
+                    emit_event(
+                        event="pipeline_finished",
+                        payload={
+                            "final_status": "FAILED",
+                            "reason": "UNCAUGHT_EXCEPTION",
+                        },
+                    )
+                except Exception as log_exc:
+                    print(f"[ERROR] Failed to log uncaught exception for {assigned_run_id}: {log_exc}")
             finally:
                 with self._lock:
                     self._running = False
