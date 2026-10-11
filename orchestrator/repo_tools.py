@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import re
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -335,6 +336,243 @@ def list_directory(relative_path: str = ".") -> list[str]:
         raise NotADirectoryError(f"Not a directory: {relative_path}")
 
     return sorted(item.name for item in path.iterdir())
+
+
+FILE_REF_PATTERN = re.compile(r'@file:([^\s]+)')
+
+
+def resolve_file_reference(ref_path: str) -> Optional[Path]:
+    """Resolve a bare @file: reference against agents root, active repo root,
+    and workspace root (same precedence as the UI prompt-preview endpoint)."""
+    clean = ref_path.strip()
+    if not clean:
+        return None
+
+    agents_root = AGENTS_ROOT.resolve()
+    workspace_root = WORKSPACE_ROOT.resolve()
+    try:
+        repo_root = get_repo_root().resolve()
+    except Exception:
+        repo_root = None
+
+    candidates = [agents_root / clean, workspace_root / clean]
+    if repo_root:
+        candidates.insert(1, repo_root / clean)
+
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+            if resolved.is_file() and (
+                resolved.is_relative_to(agents_root)
+                or (repo_root and resolved.is_relative_to(repo_root))
+                or resolved.is_relative_to(workspace_root)
+            ):
+                return resolved
+        except Exception:
+            continue
+    return None
+
+
+def resolve_task_file_references(task: str) -> str:
+    """Expand @file:<path> references inside a task string into inlined file
+    content blocks, so the Planner (no tool access) can see referenced prompt
+    files without needing to fetch them itself."""
+    matches = list(FILE_REF_PATTERN.finditer(task))
+    if not matches:
+        return task
+
+    seen = set()
+    appended_blocks = []
+    for match in matches:
+        ref = match.group(1).rstrip(".,;:)")
+        if ref in seen:
+            continue
+        seen.add(ref)
+
+        resolved = resolve_file_reference(ref)
+        if resolved:
+            try:
+                content = resolved.read_text(encoding="utf-8")
+                appended_blocks.append(
+                    f"\n\n--- REFERENCED FILE: {ref} ---\n{content}\n--- END FILE: {ref} ---"
+                )
+            except Exception as exc:
+                appended_blocks.append(
+                    f"\n\n[WARNING: Found '@file:{ref}' but failed to read it: {exc}]"
+                )
+        else:
+            appended_blocks.append(
+                f"\n\n[WARNING: Could not resolve '@file:{ref}' under agents root, repo root, "
+                "or workspace root. The Planner has no tool access and cannot fetch this file "
+                "itself — verify the path.]"
+            )
+
+    return task + "".join(appended_blocks)
+
+
+def get_file_boundary_contents(file_boundaries: list, max_chars: int = 160000, reference_files: Optional[list] = None) -> str:
+    """Read current on-disk content of every file named in the spec contract's
+    file_boundaries and format it for injection into Frontend/Backend prompts.
+
+    Frontend/Backend have no read tool, so without this they cannot safely
+    modify any existing file named in the contract (they must guess its
+    content or refuse).
+
+    `reference_files` (optional) are READ-ONLY context files the Planner
+    flagged (e.g. a NEEDS CONTEXT section) that are not being created or
+    modified — things like `src/theme/colors.ts` whose exact export shape
+    Frontend must import correctly but never touch. They are inlined in a
+    clearly separate, explicitly read-only block so agents can't confuse
+    them with files they're allowed to write.
+
+    Files are read smallest-first so a single large file (e.g. a seed data
+    file) cannot starve several small-but-critical files (e.g. a port
+    interface) out of the budget. The two lists share one combined char
+    budget to keep the prompt bounded."""
+    if not file_boundaries and not reference_files:
+        return ""
+
+    try:
+        repo_root = get_repo_root()
+    except Exception:
+        return ""
+
+    def _collect(paths: list) -> list:
+        collected = []
+        for rel_path in paths or []:
+            clean_rel = rel_path.strip().strip("`").lstrip("./")
+            if not clean_rel:
+                continue
+            try:
+                candidate = (repo_root / clean_rel).resolve()
+                candidate.relative_to(repo_root.resolve())
+            except Exception:
+                continue
+
+            if not candidate.is_file():
+                continue
+
+            try:
+                size = candidate.stat().st_size
+            except Exception:
+                size = 0
+            collected.append((size, clean_rel, candidate))
+        return collected
+
+    candidates = []
+    skipped_missing = []
+
+    for rel_path in file_boundaries:
+        clean_rel = rel_path.strip().strip("`").lstrip("./")
+        if not clean_rel:
+            continue
+        try:
+            candidate = (repo_root / clean_rel).resolve()
+            candidate.relative_to(repo_root.resolve())
+        except Exception:
+            continue
+
+        if not candidate.is_file():
+            skipped_missing.append(clean_rel)
+            continue
+
+        try:
+            size = candidate.stat().st_size
+        except Exception:
+            size = 0
+        candidates.append((size, clean_rel, candidate))
+
+    reference_candidates = _collect(reference_files)
+
+    # Smallest files first so the budget is spent on breadth, not hogged by
+    # one large file (e.g. a seed/fixture file) at the expense of several
+    # small-but-load-bearing files (e.g. a port interface).
+    candidates.sort(key=lambda item: item[0])
+    reference_candidates.sort(key=lambda item: item[0])
+
+    blocks = []
+    total_chars = 0
+    truncated_names = []
+
+    for _size, clean_rel, candidate in candidates:
+        try:
+            content = candidate.read_text(encoding="utf-8")
+        except Exception as exc:
+            blocks.append(f"--- EXISTING FILE: {clean_rel} ---\n[Could not read: {exc}]\n--- END FILE: {clean_rel} ---")
+            continue
+
+        block = f"--- EXISTING FILE: {clean_rel} ---\n{content}\n--- END FILE: {clean_rel} ---"
+        if total_chars + len(block) > max_chars:
+            truncated_names.append(clean_rel)
+            continue
+        blocks.append(block)
+        total_chars += len(block)
+
+    reference_blocks = []
+    reference_truncated_names = []
+
+    for _size, clean_rel, candidate in reference_candidates:
+        try:
+            content = candidate.read_text(encoding="utf-8")
+        except Exception as exc:
+            reference_blocks.append(f"--- REFERENCE FILE (READ-ONLY): {clean_rel} ---\n[Could not read: {exc}]\n--- END FILE: {clean_rel} ---")
+            continue
+
+        block = f"--- REFERENCE FILE (READ-ONLY): {clean_rel} ---\n{content}\n--- END FILE: {clean_rel} ---"
+        if total_chars + len(block) > max_chars:
+            reference_truncated_names.append(clean_rel)
+            continue
+        reference_blocks.append(block)
+        total_chars += len(block)
+
+    if not blocks and not skipped_missing and not reference_blocks and not reference_truncated_names:
+        return ""
+
+    header = (
+        "=== EXISTING FILE CONTENTS (for files named in the IMMUTABLE SPEC CONTRACT file "
+        "boundaries that already exist on disk) ===\n"
+        "You have no file-read tool. These are the ACTUAL current contents of the files you "
+        "may need to modify. A `write:path` block replaces the ENTIRE file, so when editing an "
+        "existing file below, reproduce it in full with only your intended changes applied — "
+        "never guess or reconstruct content from memory.\n"
+    )
+    footer = "=== END EXISTING FILE CONTENTS ===\n"
+    body = "\n\n".join(blocks) if blocks else ""
+
+    notes = []
+    if skipped_missing:
+        notes.append(
+            "NOTE: the following contract file_boundaries do not exist on disk yet "
+            "(safe to create fresh with a `write:` block): " + ", ".join(skipped_missing)
+        )
+    if truncated_names:
+        notes.append(
+            "WARNING: the following files exist but were too large to fit in the context "
+            "budget and are NOT shown above — do NOT guess their contents or write to them "
+            "blind; report them as NEEDS CONTEXT instead: " + ", ".join(truncated_names)
+        )
+
+    notes_block = ("\n" + "\n".join(notes) + "\n") if notes else ""
+
+    reference_section = ""
+    if reference_blocks or reference_truncated_names:
+        ref_header = (
+            "\n\n=== REFERENCE-ONLY FILE CONTENTS (READ-ONLY — do NOT create, modify, or write "
+            "to any file in this section; these exist purely so you import the correct real "
+            "export names/shapes instead of guessing) ===\n"
+        )
+        ref_body = "\n\n".join(reference_blocks) if reference_blocks else ""
+        ref_notes = ""
+        if reference_truncated_names:
+            ref_notes = (
+                "\nWARNING: the following reference files exist but were too large to fit in "
+                "the context budget and are NOT shown above — do NOT guess their exported "
+                "names/shapes; report them as NEEDS CONTEXT instead: " + ", ".join(reference_truncated_names) + "\n"
+            )
+        ref_footer = "=== END REFERENCE-ONLY FILE CONTENTS ===\n"
+        reference_section = ref_header + ref_body + ref_notes + ref_footer
+
+    return header + body + notes_block + footer + reference_section
 
 
 def repo_tree(max_depth: int = 3) -> str:

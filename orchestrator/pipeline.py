@@ -1,3 +1,4 @@
+import json
 import re
 import shlex
 import subprocess
@@ -21,6 +22,8 @@ from orchestrator.repo_tools import (
     write_file,
     delete_file,
     file_exists,
+    resolve_task_file_references,
+    get_file_boundary_contents,
 )
 
 from orchestrator.command_tools import run_safe_command
@@ -34,6 +37,13 @@ from orchestrator.harness_tools import (
     extract_type_skeletons,
     sanitize_test_output,
     run_typecheck_gate,
+)
+from orchestrator.contract_tools import write_spec_contract
+from orchestrator.evidence_tools import write_verification_evidence, parse_evidence_on_disk
+from orchestrator.micro_commit_tools import (
+    get_current_head_sha,
+    create_micro_commit,
+    rollback_to_micro_commit,
 )
 from orchestrator.cancellation import CancellationToken, PipelineCancelledException
 from orchestrator.providers import ProviderError, ProviderTimeoutError, ProviderAuthError, ProviderRateLimitError
@@ -49,6 +59,31 @@ def read_pipeline_file(name: str) -> str:
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
+
+
+TOOL_CALL_MARKERS = (
+    "<｜DSML｜",
+    "<tool_call>",
+    "<function_call",
+    "<｜tool_calls｜",
+)
+
+
+def validate_planner_spec(spec: str) -> dict:
+    """Reject Planner output that contains hallucinated tool-call syntax or is
+    missing the required spec contract sections, instead of silently persisting it."""
+    if not spec or not spec.strip():
+        return {"valid": False, "reason": "empty output"}
+
+    lowered = spec.lower()
+    for marker in TOOL_CALL_MARKERS:
+        if marker.lower() in lowered:
+            return {"valid": False, "reason": f"contains tool-call syntax ({marker!r})"}
+
+    if "find . " in spec or "ls -la" in spec or "cat pipeline/" in spec:
+        return {"valid": False, "reason": "contains exploratory shell commands instead of a spec"}
+
+    return {"valid": True, "reason": ""}
 
 
 def write_pipeline_file(name: str, content: str) -> None:
@@ -219,6 +254,13 @@ class MalformedWriteError(ValueError):
 
 
 def parse_and_apply_agent_file_operations(agent_output: str, role: str) -> dict:
+    if not agent_output:
+        raise MalformedWriteError(
+            f"Agent [{role}] returned empty/None output. Nothing to parse — "
+            "this indicates a provider-level failure that should have been raised "
+            "as a ProviderError before reaching this point."
+        )
+
     malformed_write = re.search(r"```write(?:\s+|$|\n)(?!:)", agent_output)
     if malformed_write:
         raise MalformedWriteError(
@@ -769,12 +811,13 @@ def run_pipeline(
         },
     )
     print("\n[1/5] PLANNER STARTED", flush=True)
+    resolved_task = resolve_task_file_references(task)
     planner_prompt = f"""
 {shared_context}
 
 TASK:
 
-{task}
+{resolved_task}
 
 Create the implementation specification for this task.
 
@@ -794,13 +837,67 @@ pipeline/spec.md
     t0 = time.time()
     spec = safe_run_agent("planner", planner_prompt, current_stage="planner", cycle_num=0)
     t_planner = time.time() - t0
+
+    spec_validation = validate_planner_spec(spec)
+    if not spec_validation["valid"]:
+        emit_event(
+            event="stage_output_rejected",
+            stage="planner",
+            cycle=0,
+            payload={"reason": spec_validation["reason"]},
+        )
+        print(f"\n[WARN] Planner output invalid ({spec_validation['reason']}); retrying once...", flush=True)
+        retry_prompt = planner_prompt + (
+            "\n\nYOUR PREVIOUS RESPONSE WAS REJECTED: "
+            f"{spec_validation['reason']}. "
+            "Return ONLY the final markdown specification content. "
+            "No tool calls, no narration, no shell commands."
+        )
+        t0 = time.time()
+        spec = safe_run_agent("planner", retry_prompt, current_stage="planner", cycle_num=0)
+        t_planner += time.time() - t0
+        spec_validation = validate_planner_spec(spec)
+        if not spec_validation["valid"]:
+            emit_event(
+                event="stage_failed",
+                stage="planner",
+                cycle=0,
+                payload={
+                    "error_type": "PLANNER_OUTPUT_INVALID",
+                    "reason": spec_validation["reason"],
+                },
+            )
+            emit_event(
+                event="pipeline_finished",
+                stage="planner",
+                cycle=0,
+                payload={
+                    "final_status": "FAILED",
+                    "reason": "PLANNER_OUTPUT_INVALID",
+                    "cycles_used": 0,
+                    "total_duration_sec": time.time() - pipeline_start_time,
+                },
+            )
+            print(f"\n[ERROR] Planner output still invalid after retry: {spec_validation['reason']}", flush=True)
+            raise RuntimeError(f"PLANNER_OUTPUT_INVALID: {spec_validation['reason']}")
+
     write_pipeline_file("spec.md", spec)
+
+    # Extract & write immutable spec contract
+    contract_res = write_spec_contract(spec, manifest=manifest, pipeline_dir=PIPELINE_DIR)
+    contract_md = contract_res["markdown"]
+    existing_file_contents = get_file_boundary_contents(
+        contract_res["contract"].get("file_boundaries", []),
+        reference_files=contract_res["contract"].get("reference_files", []),
+    )
+
     emit_event(
         event="stage_output",
         stage="planner",
         payload={
             "role": "planner",
             "output": spec,
+            "contract": contract_res["contract"],
             "duration_sec": t_planner,
         },
     )
@@ -813,7 +910,7 @@ pipeline/spec.md
         },
     )
     print(f"[1/5] PLANNER COMPLETE ({t_planner:.2f}s)", flush=True)
-    print("Wrote pipeline/spec.md", flush=True)
+    print("Wrote pipeline/spec.md and pipeline/contract.md", flush=True)
 
     # Check cancellation checkpoint after Planner / before Frontend
     check_cancellation(current_stage="planner", cycle_num=0)
@@ -837,11 +934,17 @@ PLANNER SPEC:
 
 {spec}
 
+IMMUTABLE SPEC CONTRACT:
+
+{contract_md}
+
+{existing_file_contents}
+
 You are the Frontend agent implementing the frontend portion of this task for {project_name}.
 
 CRITICAL INSTRUCTIONS FOR FILE WRITES:
-1. Follow the Planner spec strictly.
-2. Only modify or create frontend files assigned to you within authorized write roots.
+1. Follow the Planner spec and the IMMUTABLE SPEC CONTRACT strictly.
+2. Only modify or create frontend files assigned to you within authorized write roots and specified contract boundaries.
 3. You MUST use this EXACT code block syntax to write or update files:
 ```write:relative/path/to/file
 <complete file contents here>
@@ -902,10 +1005,16 @@ PLANNER SPEC:
 
 {spec}
 
+IMMUTABLE SPEC CONTRACT:
+
+{contract_md}
+
+{existing_file_contents}
+
 You are the Backend agent implementing the backend portion of this task for {project_name}.
 
 CRITICAL INSTRUCTIONS FOR FILE WRITES:
-1. Follow the Planner spec strictly.
+1. Follow the Planner spec and the IMMUTABLE SPEC CONTRACT strictly.
 2. If the spec states "BACKEND TASK: None" or no backend work is required, do NOT write any files. State: "BACKEND TASK: None."
 3. You MUST use this EXACT code block syntax to write or update files:
 ```write:relative/path/to/file
@@ -985,6 +1094,10 @@ When finished, provide your standard BACKEND CHANGES summary at the end of your 
         )
         print("\nTESTER STARTED", flush=True)
         command_results, git_results, attribution = execute_test_and_git_commands(baseline=git_baseline)
+        
+        # Evidence-on-disk: Persist raw results and verification summary
+        evidence_data = write_verification_evidence(command_results, stage="tester", cycle=cycle)
+        
         command_outputs_formatted = "\n\n".join(format_command_result(r) for r in command_results)
         git_outputs_formatted = "\n\n".join(format_git_result(r) for r in git_results)
         attribution_formatted = format_git_attribution_context(attribution) if attribution else ""
@@ -1087,8 +1200,14 @@ CURRENT REPOSITORY TREE AFTER IMPLEMENTATION:
 PLANNER SPEC:
 {spec}
 
+IMMUTABLE SPEC CONTRACT:
+{contract_md}
+
 CHANGES (pipeline/changes.md):
 {changes}
+
+ON-DISK VERIFICATION EVIDENCE (.evidence/tester_verification.json):
+{json.dumps(evidence_data.get('summary', {}), indent=2)}
 
 TESTER REPORT:
 {tester_result}
@@ -1104,11 +1223,12 @@ UNTRACKED IMPLEMENTATION FILE CONTENTS:
 
 IMPORTANT INSTRUCTIONS FOR REVIEWER:
 - Review the actual implementation changes made by Frontend/Backend for {project_name}.
+- Inspect ON-DISK VERIFICATION EVIDENCE (.evidence/): If TypeScript check or test execution has failures or non-zero exit codes, you MUST issue CHANGES REQUIRED.
 - IMPORTANT ATTRIBUTION RULES:
   * Inspect the "GIT WORKTREE & TASK ATTRIBUTION" section carefully.
   * Evaluate scope and acceptance criteria strictly against the "CURRENT RUN DELTA" (files created, modified, or deleted during THIS pipeline run).
   * Do NOT request reversion of unrelated pre-existing worktree changes merely because they exist in the repository.
-  * Do flag any file changes in the "CURRENT RUN DELTA" that violate task scope or manifest rules.
+  * Do flag any file changes in the "CURRENT RUN DELTA" that violate task scope, manifest rules, or the IMMUTABLE SPEC CONTRACT.
   * Do consider pre-existing changes only if they directly break, invalidate, or conflict with the current task implementation.
 - Output your machine-readable verdict at the VERY TOP:
 VERDICT: APPROVE
@@ -1153,6 +1273,16 @@ Followed by TASK, ISSUES, and REASON.
 
         verdict_data = parse_reviewer_verdict(reviewer_result)
         verdict = verdict_data["verdict"]
+
+        # Hard gating: If on-disk evidence shows failures but Reviewer tried to approve, override to CHANGES REQUIRED
+        evidence_summary = evidence_data.get("summary", {})
+        if verdict == "APPROVE" and evidence_summary.get("has_failures", False):
+            print("\n[GUARD] Overriding Reviewer APPROVE verdict due to hard test/typecheck failures in .evidence/", flush=True)
+            verdict = "CHANGES REQUIRED"
+            verdict_data["verdict"] = "CHANGES REQUIRED"
+            verdict_data["frontend_fix_required"] = True
+            reviewer_result = f"VERDICT: CHANGES REQUIRED\nFRONTEND_FIX_REQUIRED: YES\nBACKEND_FIX_REQUIRED: NO\nDEPENDENCY_FIX_REQUIRED: NO\n\nTASK: Auto-Gated Review Fix\nISSUES:\n- Hard verification failures recorded on disk in .evidence/tester_verification.json\n- Errors: {', '.join(evidence_summary.get('errors', ['Command execution failure'])[:3])}\n\nREASON: Reviewer cannot approve when .evidence/ reports test/typecheck failures."
+
         print(f"\nVERDICT: {verdict}")
 
         emit_event(
@@ -1169,6 +1299,11 @@ Followed by TASK, ISSUES, and REASON.
         )
 
         if verdict == "APPROVE":
+            # Create verified micro-commit for completed run
+            micro_res = create_micro_commit(stage="reviewer", cycle=cycle, summary=f"approved: {task[:50]}")
+            if micro_res.get("created"):
+                print(f"[MICRO-COMMIT] Created savepoint {micro_res.get('sha')[:8]} ({micro_res.get('message')})", flush=True)
+
             emit_event(
                 event="human_approval_required",
                 stage="reviewer",
@@ -1176,6 +1311,7 @@ Followed by TASK, ISSUES, and REASON.
                 payload={
                     "cycle": cycle,
                     "reviewer_verdict": "APPROVE",
+                    "micro_commit": micro_res,
                     "reason": "Reviewer approved implementation changes. Human operator approval required.",
                 },
             )
@@ -1268,11 +1404,20 @@ Followed by TASK, ISSUES, and REASON.
                 },
             )
             print("\nFRONTEND REPAIR STARTED", flush=True)
+            existing_file_contents = get_file_boundary_contents(
+                contract_res["contract"].get("file_boundaries", []),
+                reference_files=contract_res["contract"].get("reference_files", []),
+            )
             fe_repair_prompt = f"""
 {shared_context}
 
 PLANNER SPEC:
 {spec}
+
+IMMUTABLE SPEC CONTRACT:
+{contract_md}
+
+{existing_file_contents}
 
 CURRENT IMPLEMENTATION CHANGES:
 {changes}
@@ -1288,13 +1433,14 @@ UNTRACKED IMPLEMENTATION FILE CONTENTS:
 
 You are the Frontend agent repairing issues identified in review for {project_name}.
 INSTRUCTIONS:
-1. Modify ONLY what is necessary to address the reviewer feedback.
-2. Use the canonical write syntax:
+1. Adhere strictly to the IMMUTABLE SPEC CONTRACT.
+2. Modify ONLY what is necessary to address the reviewer feedback.
+3. Use the canonical write syntax:
 ```write:relative/path/to/file
 <complete file contents here>
 ```
-3. Do NOT merely describe fixes in prose without write blocks.
-4. Keep changes clean, minimal, and compliant with project conventions.
+4. Do NOT merely describe fixes in prose without write blocks.
+5. Keep changes clean, minimal, and compliant with project conventions.
 """
 
             t0 = time.time()
@@ -1340,11 +1486,20 @@ INSTRUCTIONS:
                 },
             )
             print("\nBACKEND REPAIR STARTED", flush=True)
+            existing_file_contents = get_file_boundary_contents(
+                contract_res["contract"].get("file_boundaries", []),
+                reference_files=contract_res["contract"].get("reference_files", []),
+            )
             be_repair_prompt = f"""
 {shared_context}
 
 PLANNER SPEC:
 {spec}
+
+IMMUTABLE SPEC CONTRACT:
+{contract_md}
+
+{existing_file_contents}
 
 CURRENT IMPLEMENTATION CHANGES:
 {changes}
@@ -1357,13 +1512,14 @@ REVIEWER FEEDBACK (CHANGES REQUIRED):
 
 You are the Backend agent repairing issues identified in review for {project_name}.
 INSTRUCTIONS:
-1. Modify ONLY what is necessary to address the reviewer feedback.
-2. Use the canonical write syntax:
+1. Adhere strictly to the IMMUTABLE SPEC CONTRACT.
+2. Modify ONLY what is necessary to address the reviewer feedback.
+3. Use the canonical write syntax:
 ```write:relative/path/to/file
 <complete file contents here>
 ```
-3. Do NOT merely describe fixes in prose without write blocks.
-4. Keep changes clean, minimal, and compliant with project conventions.
+4. Do NOT merely describe fixes in prose without write blocks.
+5. Keep changes clean, minimal, and compliant with project conventions.
 """
 
             t0 = time.time()
