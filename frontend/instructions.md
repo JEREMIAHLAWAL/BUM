@@ -59,7 +59,12 @@ STRICT RULES:
 
 When finished:
 
-1. Append your changes to `pipeline/changes.md` in this format:
+1. Do NOT write `pipeline/changes.md` yourself — the orchestrator automatically
+   appends your final response text to it after you finish. Writing it yourself
+   with a `write:pipeline/changes.md` block will CLOBBER the running history,
+   since you have no read access to see what is already in that file.
+2. Simply include a `## FRONTEND CHANGES` section in your plain-text response
+   (not inside a `write:` block) in this format:
 
 ## FRONTEND CHANGES
 
@@ -72,4 +77,4 @@ SUMMARY:
 NOTES:
 - ...
 
-2. Stop after your frontend work is complete.
+3. Stop after your frontend work is complete.
