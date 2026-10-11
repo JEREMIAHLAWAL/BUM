@@ -33,3 +33,4 @@ benchmark_outputs/
 .stversions/
 .DS_Store
 Thumbs.db
+pipeline/
