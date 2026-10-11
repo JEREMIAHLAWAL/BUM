@@ -136,6 +136,13 @@ def salvage_unapproved_work(run_id: str) -> None:
             raw_path = raw_path[1:-1]
         
         target = (repo_root / raw_path).resolve()
+        is_escaping_symlink = (repo_root / raw_path).is_symlink() and not (
+            target == repo_root or target.is_relative_to(repo_root)
+        )
+        if is_escaping_symlink:
+            # e.g. node_modules symlinked back to the real checkout outside this
+            # worktree — do not walk into it; relative_to(repo_root) would raise.
+            continue
         if target.is_file():
             dest = salvage_dir / raw_path
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -143,7 +150,10 @@ def salvage_unapproved_work(run_id: str) -> None:
         elif target.is_dir():
             for subfile in target.rglob("*"):
                 if subfile.is_file():
-                    sub_rel = subfile.relative_to(repo_root)
+                    try:
+                        sub_rel = subfile.relative_to(repo_root)
+                    except ValueError:
+                        continue
                     dest = salvage_dir / sub_rel
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(subfile, dest)
@@ -433,13 +443,24 @@ def get_untracked_files_content() -> str:
             untracked.append(raw_path)
 
     parts = []
+    repo_root = get_repo_root()
     for rel_path in untracked:
         # If it's a directory (e.g. src/app/), read files inside
-        target = (get_repo_root() / rel_path).resolve()
-        if target.is_dir():
+        target = (repo_root / rel_path).resolve()
+        is_escaping_symlink = (repo_root / rel_path).is_symlink() and not (
+            target == repo_root or target.is_relative_to(repo_root)
+        )
+        if is_escaping_symlink:
+            # e.g. node_modules symlinked back to the real checkout outside this
+            # worktree — do not walk into it; relative_to(repo_root) would raise.
+            parts.append(f"FILE: {rel_path}\n```\n[skipped: symlink escapes worktree root, not inlined]\n```")
+        elif target.is_dir():
             for subfile in target.rglob("*"):
                 if subfile.is_file():
-                    sub_rel = str(subfile.relative_to(get_repo_root())).replace("\\", "/")
+                    try:
+                        sub_rel = str(subfile.relative_to(repo_root)).replace("\\", "/")
+                    except ValueError:
+                        continue
                     content = read_file(sub_rel)
                     parts.append(f"FILE: {sub_rel}\n```\n{content}\n```")
         elif target.is_file():
