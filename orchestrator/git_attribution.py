@@ -60,10 +60,20 @@ def capture_git_baseline() -> Dict[str, Any]:
         if index_status == "?" and worktree_status == "?":
             # Untracked path (could be file or directory)
             target = (repo_root / clean_path).resolve()
-            if target.exists() and target.is_dir():
+            is_escaping_symlink = (repo_root / clean_path).is_symlink() and not (
+                target == repo_root or target.is_relative_to(repo_root)
+            )
+            if is_escaping_symlink:
+                # e.g. node_modules symlinked back to the real checkout outside this
+                # worktree — do not walk into it; relative_to(repo_root) would raise.
+                untracked_files.append(clean_path)
+            elif target.exists() and target.is_dir():
                 for subfile in target.rglob("*"):
                     if subfile.is_file():
-                        sub_rel = str(subfile.relative_to(repo_root)).replace("\\", "/")
+                        try:
+                            sub_rel = str(subfile.relative_to(repo_root)).replace("\\", "/")
+                        except ValueError:
+                            continue
                         untracked_files.append(sub_rel)
                         snap = _get_file_snapshot(sub_rel)
                         if snap:
@@ -127,10 +137,18 @@ def compute_run_git_attribution(baseline: Dict[str, Any]) -> Dict[str, Any]:
 
         if idx_s == "?" and wt_s == "?":
             target = (repo_root / clean_p).resolve()
-            if target.exists() and target.is_dir():
+            is_escaping_symlink = (repo_root / clean_p).is_symlink() and not (
+                target == repo_root or target.is_relative_to(repo_root)
+            )
+            if is_escaping_symlink:
+                curr_untracked_files.add(clean_p)
+            elif target.exists() and target.is_dir():
                 for subfile in target.rglob("*"):
                     if subfile.is_file():
-                        sub_rel = str(subfile.relative_to(repo_root)).replace("\\", "/")
+                        try:
+                            sub_rel = str(subfile.relative_to(repo_root)).replace("\\", "/")
+                        except ValueError:
+                            continue
                         curr_untracked_files.add(sub_rel)
             else:
                 curr_untracked_files.add(clean_p)

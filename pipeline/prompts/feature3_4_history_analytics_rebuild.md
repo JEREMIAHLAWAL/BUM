@@ -62,10 +62,17 @@ is a summary):
 - `exerciseHistory(userId, exerciseId, options?)` and `weeklySetsByMuscle(...)` also exist if
   useful for Analytics, but keep scope to PRs + basic progress per the acceptance criteria
   below — do not over-build.
-- Access via `useDataLayer()` from `src/contexts` (established pattern, see `index.tsx`/
-  `profile.tsx`), which exposes `sessionRepository`, `exerciseRepository`, `profileRepository`.
-- Use `profileRepository.requireCurrent()` to get the current user id (single-user MVP,
-  established pattern — see `src/db/repositories/profileRepository.ts`).
+- Access via `useDatabase()` from `../../contexts/DatabaseContext` (verified live against
+  `DatabaseContext.tsx` and `profile.tsx`'s actual usage) — this returns
+  `{ dataLayer, loading, error }`, NOT flat repository names. `dataLayer` is `InitResult | null`
+  and exposes `dataLayer.sessions` (SessionRepository), `dataLayer.profiles` (ProfileRepository),
+  `dataLayer.exercises` (ExerciseRepository). Always null-check `dataLayer` (it's `null` while
+  `loading` is true) before calling methods on it — see `profile.tsx`'s
+  `const { dataLayer, loading: dbLoading } = useDatabase();` pattern.
+- Use `dataLayer.profiles.requireCurrent()` to get the current user profile/id (single-user
+  MVP, established pattern — see `src/db/repositories/profileRepository.ts`). Call methods as
+  `dataLayer.sessions.listHistory(...)`, `dataLayer.sessions.personalRecord(...)`,
+  `dataLayer.sessions.delete(...)` — NOT a bare `sessionRepository` variable.
 
 ### 5. Preservation of Domain & Context Invariants
 - Do NOT delete, overwrite, or mutate pre-existing core domain logic (`src/domain/**`,
