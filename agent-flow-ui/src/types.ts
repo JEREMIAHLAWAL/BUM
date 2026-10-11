@@ -130,6 +130,12 @@ export interface FilesHistoryEntry {
   deleted: string[];
 }
 
+export interface AgentConfig {
+  provider?: string | null;
+  model?: string | null;
+  instructions?: string | null;
+}
+
 export interface RunState {
   run_id: string | null;
   label?: string | null;
@@ -138,6 +144,7 @@ export interface RunState {
   status: CanonicalRunStatus | string;
   current_cycle: number;
   max_review_cycles: number;
+  agent_configs?: Record<string, AgentConfig>;
   started_at: number | null;
   finished_at: number | null;
   total_duration_sec: number | null;

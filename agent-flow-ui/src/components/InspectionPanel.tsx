@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { copyToClipboard } from '../utils/clipboard';
-import type { RunState, StageRun, Attempt } from '../types';
+import type { RunState } from '../types';
 
 interface InspectionPanelProps {
   run: RunState | null;
   selectedStage: string | null;
   selectedAttemptIndex: number | null;
   onSelectStage: (stageName: string, attemptIndex?: number) => void;
+  activeTab?: 'activity' | 'tests' | 'changes' | 'review';
+  onActiveTabChange?: (tab: 'activity' | 'tests' | 'changes' | 'review') => void;
 }
 
 export const InspectionPanel: React.FC<InspectionPanelProps> = ({
@@ -14,8 +16,15 @@ export const InspectionPanel: React.FC<InspectionPanelProps> = ({
   selectedStage,
   selectedAttemptIndex,
   onSelectStage,
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<'activity' | 'tests' | 'changes' | 'review'>('activity');
+  // Supports an optional controlled mode (App.tsx lifts this to wire up the
+  // ReviewRail "View diff" button, which used to be a no-op with nowhere to
+  // switch to). Falls back to fully-internal state when uncontrolled.
+  const [internalActiveTab, setInternalActiveTab] = useState<'activity' | 'tests' | 'changes' | 'review'>('activity');
+  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const setActiveTab = onActiveTabChange ?? setInternalActiveTab;
   const [followLog, setFollowLog] = useState(true);
   const [logFilter, setLogFilter] = useState('');
   const [copiedLog, setCopiedLog] = useState(false);

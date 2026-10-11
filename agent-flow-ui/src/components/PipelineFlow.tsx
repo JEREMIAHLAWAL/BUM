@@ -74,9 +74,20 @@ export const PipelineFlow: React.FC<PipelineFlowProps> = ({
   };
 
   const getStageModel = (stageName: typeof stageOrder[number]): string => {
+    // Prefer the real model actually used by a completed/attempted call for
+    // this run. Only fall back to the run's CONFIGURED model (from
+    // agent_configs, sourced from config/agents.yaml) when the stage hasn't
+    // produced any attempt yet — never a hardcoded guess, which used to go
+    // stale silently the moment agents.yaml changed.
+    const configuredModel = (name: string): string => {
+      const cfg = run.agent_configs?.[name];
+      if (cfg?.model) return cfg.model.split('/').pop() || cfg.model;
+      return 'Not configured';
+    };
+
     if (stageName === 'planner') {
       const s = stages.planner;
-      return s?.model ? s.model.split('/').pop() || s.model : 'Gemini 2.5 Flash';
+      return s?.model ? s.model.split('/').pop() || s.model : configuredModel('planner');
     }
     const ms = stages[stageName];
     if (ms?.attempts && ms.attempts.length > 0) {
@@ -87,7 +98,7 @@ export const PipelineFlow: React.FC<PipelineFlowProps> = ({
       const m = targetAttempt?.model;
       if (m) return m.split('/').pop() || m;
     }
-    return stageName === 'tester' ? 'DeepSeek V3' : stageName === 'reviewer' ? 'Claude Sonnet' : 'Gemini 2.5 Pro';
+    return configuredModel(stageName);
   };
 
   const getStageDuration = (stageName: typeof stageOrder[number]): number | null => {

@@ -14,6 +14,7 @@ def reduce_run_state(events: List[Dict[str, Any]], is_active: bool = False) -> D
             "status": "empty",
             "current_cycle": 0,
             "max_review_cycles": 3,
+            "agent_configs": {},
             "started_at": None,
             "finished_at": None,
             "total_duration_sec": None,
@@ -45,6 +46,12 @@ def reduce_run_state(events: List[Dict[str, Any]], is_active: bool = False) -> D
     label = start_event.get("payload", {}).get("label") if start_event else None
     retry_of = start_event.get("payload", {}).get("retry_of") if start_event else None
     max_review_cycles = start_event.get("payload", {}).get("max_review_cycles", 3) if start_event else 3
+    # The actually-configured provider/model per role for this run, as loaded
+    # from config/agents.yaml at pipeline start. Exposed so the frontend can
+    # show the REAL configured model as a "not started yet" placeholder on
+    # stage cards instead of a hardcoded guess (e.g. "Gemini 2.5 Flash") that
+    # silently goes stale the moment agents.yaml changes.
+    agent_configs = start_event.get("payload", {}).get("agent_configs", {}) if start_event else {}
     started_at = start_event.get("timestamp") if start_event else events[0].get("timestamp")
 
     finish_event = next((e for e in events if e.get("event") == "pipeline_finished"), None)
@@ -407,6 +414,7 @@ def reduce_run_state(events: List[Dict[str, Any]], is_active: bool = False) -> D
         "status": final_status.lower() if final_status else "running",
         "current_cycle": current_cycle,
         "max_review_cycles": max_review_cycles,
+        "agent_configs": agent_configs,
         "started_at": started_at,
         "finished_at": finished_at,
         "total_duration_sec": total_duration_sec,

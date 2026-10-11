@@ -40,10 +40,21 @@ export interface WorkspaceProject {
   type: string;
 }
 
+export interface VersionInfo {
+  boot_commit: string | null;
+  boot_commit_message: string | null;
+  current_commit_on_disk: string | null;
+  current_commit_message: string | null;
+  is_stale: boolean;
+  server_boot_time: number;
+  warning: string | null;
+}
+
 export interface ProjectsResponse {
   projects: WorkspaceProject[];
   active_path: string;
   source: string;
+  version?: VersionInfo;
 }
 
 export interface PromptPreviewResponse {

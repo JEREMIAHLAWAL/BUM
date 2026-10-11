@@ -16,7 +16,7 @@ import {
   fetchProjects,
   selectProject,
 } from './api';
-import type { WorkspaceProject } from './api';
+import type { WorkspaceProject, VersionInfo } from './api';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { TaskInputBar } from './components/TaskInputBar';
@@ -44,6 +44,18 @@ export const App: React.FC = () => {
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  // Lifted from InspectionPanel so ReviewRail's "View diff" button can
+  // switch to the Changes tab — it used to be a no-op (onShowChanges={() => {}}).
+  const [inspectionActiveTab, setInspectionActiveTab] = useState<'activity' | 'tests' | 'changes' | 'review'>('activity');
+  // Mobile hamburger menu used to have no state to open — Header's
+  // onOpenSidebar prop was never even passed, and .desktop-sidebar is
+  // display:none below 860px with no mobile equivalent rendered anywhere.
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  // Deployed-code version visibility: surfaces is_stale/warning from
+  // /api/projects (which now embeds get_version_info()'s output) so a
+  // Syncthing-synced-but-not-restarted bum-agent-flow service is visible
+  // in the UI before a run gets burned on stale code.
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
 
   const activeRunIdRef = useRef<string | null>(null);
   const prevRunStatusRef = useRef<string | null>(null);
@@ -89,6 +101,7 @@ export const App: React.FC = () => {
       const data = await fetchProjects();
       setProjects(data.projects);
       setActiveProjectPath(data.active_path);
+      setVersionInfo(data.version || null);
     } catch {
       // non-fatal
     }
@@ -476,6 +489,7 @@ export const App: React.FC = () => {
         onToggleAudio={() => setAudioEnabled(!audioEnabled)}
         onNewTask={() => document.getElementById('task-prompt')?.focus()}
         onCommandMenu={() => setIsCommandMenuOpen(true)}
+        onOpenSidebar={() => setIsMobileSidebarOpen(true)}
         onRefresh={() => {
           if (selectedRunId) loadRunState(selectedRunId);
           loadProjects();
@@ -490,6 +504,16 @@ export const App: React.FC = () => {
           <button type="button" className="icon-button" onClick={() => setErrorMsg(null)} aria-label="Dismiss">
             ✕
           </button>
+        </div>
+      )}
+
+      {versionInfo?.is_stale && (
+        <div className="toast toast-error" role="alert" title={versionInfo.warning || undefined}>
+          <span>
+            ⚠ Stale orchestrator code running — boot commit {versionInfo.boot_commit?.slice(0, 7) || '?'}, disk has{' '}
+            {versionInfo.current_commit_on_disk?.slice(0, 7) || '?'} ({versionInfo.current_commit_message || 'newer commit'}).
+            Restart bum-agent-flow to pick it up.
+          </span>
         </div>
       )}
 
@@ -522,6 +546,62 @@ export const App: React.FC = () => {
             workspace={activeWorkspace}
           />
         </div>
+
+        {isMobileSidebarOpen && (
+          <div
+            className="mobile-sidebar-overlay"
+            onClick={() => setIsMobileSidebarOpen(false)}
+            role="presentation"
+          >
+            <div
+              className="mobile-sidebar-panel"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Run history"
+            >
+              <button
+                type="button"
+                className="icon-button mobile-sidebar-close"
+                aria-label="Close run history"
+                onClick={() => setIsMobileSidebarOpen(false)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+              <Sidebar
+                runs={runs}
+                selectedRunId={selectedRunId}
+                onSelectRun={(runId) => {
+                  setSelectedRunId(runId);
+                  setSelectedStage('planner');
+                  setSelectedAttemptIndex(null);
+                  setIsMobileSidebarOpen(false);
+                }}
+                onStop={handleStopPipeline}
+                onRetry={handleRetryRun}
+                onResume={handleResumeRun}
+                onClone={(task, label) => {
+                  setDraftTask(task);
+                  setDraftLabel(label || '');
+                  setIsMobileSidebarOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onApprove={handleApproveRun}
+                onReject={handleRejectRun}
+                onDeleteRun={handleDeleteRun}
+                onPurgeRuns={handlePurgeRuns}
+                isPipelineRunning={isPipelineRunning}
+                isCancellationRequested={isCancellationRequested}
+                isRetryEligible={isRetryEligible}
+                isHumanDecisionEligible={isHumanDecisionEligible}
+                workspace={activeWorkspace}
+              />
+            </div>
+          </div>
+        )}
 
         <main className="main-content" id="main-content" tabIndex={-1}>
           {/* Run Header */}
@@ -625,6 +705,8 @@ export const App: React.FC = () => {
               selectedStage={selectedStage}
               selectedAttemptIndex={selectedAttemptIndex}
               onSelectStage={handleSelectStage}
+              activeTab={inspectionActiveTab}
+              onActiveTabChange={setInspectionActiveTab}
             />
 
             <ReviewRail
@@ -634,7 +716,7 @@ export const App: React.FC = () => {
               onReject={handleRejectRun}
               onResume={handleResumeRun}
               onRetry={handleRetryRun}
-              onShowChanges={() => {}}
+              onShowChanges={() => setInspectionActiveTab('changes')}
               activeProjectPath={activeProjectPath}
             />
           </div>
