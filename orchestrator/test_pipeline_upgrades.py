@@ -92,6 +92,45 @@ PERMITTED TOKENS:
         self.assertTrue((pipeline_dir / "contract.md").exists())
         self.assertIn("SPECIFICATION CONTRACT", (pipeline_dir / "contract.md").read_text(encoding="utf-8"))
 
+    def test_file_boundaries_survive_route_group_parens(self):
+        """Regression test: Expo Router / Next.js route-group folders like
+        `(app)` contain parens in the path. The extraction regex's char
+        class must include '()' or a path such as
+        `src/app/(app)/_layout.tsx` truncates to just "_layout.tsx" (no
+        slash) and gets silently dropped from file_boundaries — which is
+        exactly what starved Frontend of the file's on-disk content and
+        caused 3 straight Reviewer-rejected blind-rewrite cycles on the
+        real feature3_4_rebuild_v3 run (see MASTER_TODO.md)."""
+        boundaries_spec = """
+FILES TO CREATE OR MODIFY:
+- `src/app/(app)/history.tsx`
+- `src/app/(app)/_layout.tsx`
+"""
+        contract_data = extract_contract_from_spec(boundaries_spec, manifest=None)
+
+        self.assertIn(
+            "src/app/(app)/history.tsx", contract_data["file_boundaries"]
+        )
+        self.assertIn(
+            "src/app/(app)/_layout.tsx", contract_data["file_boundaries"]
+        )
+        # The truncated, slash-less fragment must never leak in as a
+        # separate (wrong) entry.
+        self.assertNotIn("_layout.tsx", contract_data["file_boundaries"])
+
+        # NEEDS CONTEXT uses its own markdown-heading-anchored regex;
+        # verify the same parens fix applies to reference_files too.
+        reference_spec = """
+## 9. NEEDS CONTEXT
+
+- `src/app/(app)/profile.tsx`
+"""
+        reference_data = extract_contract_from_spec(reference_spec, manifest=None)
+        self.assertIn(
+            "src/app/(app)/profile.tsx", reference_data["reference_files"]
+        )
+        self.assertNotIn("profile.tsx", reference_data["reference_files"])
+
     def test_evidence_on_disk_logging_and_parsing(self):
         cmd_results = [
             {

@@ -47,7 +47,11 @@ def extract_contract_from_spec(spec_text: str, manifest: Optional[BumManifest] =
     if files_section:
         for line in files_section.group(0).splitlines():
             # Match paths like `src/app/index.tsx` or - src/app/index.tsx
-            match = re.findall(r"[`']?([a-zA-Z0-9_./\-]+\.[a-zA-Z0-9]+)[`']?", line)
+            # or `src/app/(app)/_layout.tsx` (Expo Router / Next.js route-group
+            # folders use parens, e.g. `(app)`, `(auth)` — the char class must
+            # include '()' or the match truncates to just "_layout.tsx" with
+            # no slash, silently dropping the path from file_boundaries).
+            match = re.findall(r"[`']?([a-zA-Z0-9_./\-()]+\.[a-zA-Z0-9]+)[`']?", line)
             for m in match:
                 if "/" in m or "\\" in m:
                     clean_path = m.replace("\\", "/").strip("./")
@@ -70,7 +74,9 @@ def extract_contract_from_spec(spec_text: str, manifest: Optional[BumManifest] =
     )
     if needs_context_section:
         for line in needs_context_section.group(1).splitlines():
-            match = re.findall(r"[`']?([a-zA-Z0-9_./\-]+\.[a-zA-Z0-9]+)[`']?", line)
+            # Same parens fix as file_boundaries above — route-group paths
+            # like `(app)/_layout.tsx` must not be truncated.
+            match = re.findall(r"[`']?([a-zA-Z0-9_./\-()]+\.[a-zA-Z0-9]+)[`']?", line)
             for m in match:
                 if "/" in m or "\\" in m:
                     clean_path = m.replace("\\", "/").strip("./")
