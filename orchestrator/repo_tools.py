@@ -19,6 +19,7 @@ WORKSPACE_ROOT = AGENTS_ROOT.parent
 DERIVED_REPO_PATH = WORKSPACE_ROOT / "CLAUDE" / "trayne"
 
 _ACTIVE_PROJECT_PATH: Optional[Path] = None
+_RUN_WORKTREE_OVERRIDE: Optional[Path] = None
 
 
 def set_active_project_path(path: Optional[Path]) -> None:
@@ -30,6 +31,21 @@ def set_active_project_path(path: Optional[Path]) -> None:
 def get_active_project_path() -> Optional[Path]:
     """Retrieve the dynamically active project path if set."""
     return _ACTIVE_PROJECT_PATH
+
+
+def set_run_worktree_override(path: Optional[Path]) -> None:
+    """Point repo resolution at an isolated per-run git worktree instead of the
+    real checkout. Highest precedence in resolve_repo_root(): while a run's
+    worktree is active, every read/write/git/command helper in this process
+    transparently operates on the throwaway worktree, so a destructive or
+    buggy pipeline run can never touch the real checkout's uncommitted work.
+    Pass None to clear and fall back to the real checkout again."""
+    global _RUN_WORKTREE_OVERRIDE
+    _RUN_WORKTREE_OVERRIDE = path.resolve() if path else None
+
+
+def get_run_worktree_override() -> Optional[Path]:
+    return _RUN_WORKTREE_OVERRIDE
 
 
 def list_available_projects() -> list[dict]:
@@ -99,10 +115,15 @@ def resolve_repo_root() -> tuple[Path, str]:
     Resolve the repository root and report where the value came from.
 
     Precedence:
+      0. Active run worktree override (_RUN_WORKTREE_OVERRIDE) — an isolated
+         git worktree for the currently executing pipeline run, if one exists.
       1. Dynamic runtime selection (_ACTIVE_PROJECT_PATH)
       2. TRAYNE_REPO_PATH (environment or .env) — escape hatch for an alternate checkout.
       3. The path derived from this file's location inside the workspace.
     """
+    if _RUN_WORKTREE_OVERRIDE is not None:
+        return _RUN_WORKTREE_OVERRIDE, "run_worktree"
+
     if _ACTIVE_PROJECT_PATH is not None:
         return _ACTIVE_PROJECT_PATH, "dynamic_selection"
 

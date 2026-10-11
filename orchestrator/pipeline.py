@@ -12,7 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from orchestrator.run import run_agent, load_agents
-from orchestrator.events import EventLogger, set_current_logger, emit_event
+from orchestrator.events import EventLogger, set_current_logger, emit_event, generate_run_id
 from orchestrator.repo_tools import (
     get_repo_root,
     get_active_manifest,
@@ -24,6 +24,12 @@ from orchestrator.repo_tools import (
     file_exists,
     resolve_task_file_references,
     get_file_boundary_contents,
+    set_run_worktree_override,
+    resolve_repo_root,
+)
+from orchestrator.worktree_tools import (
+    create_run_worktree,
+    discard_run_worktree,
 )
 
 from orchestrator.command_tools import run_safe_command
@@ -540,6 +546,86 @@ def run_pipeline(
     retry_of: Optional[str] = None,
     label: Optional[str] = None,
 ) -> str:
+    """
+    Public entry point. Wraps _run_pipeline_impl() with isolated-worktree
+    lifecycle management so the real target repo checkout is NEVER
+    destructively touched by a pipeline run:
+
+    1. Resolve the REAL repo root (before any override is active).
+    2. Create a throwaway git worktree + branch off its current HEAD.
+    3. Point repo resolution at the worktree for the duration of the run.
+    4. Run the actual pipeline body against the worktree.
+    5. On ANY exit path (normal return, cancellation, uncaught exception):
+       clear the override and discard the worktree. Merging approved work
+       back into the real checkout is a SEPARATE, explicit, human-triggered
+       step (server.py's /approve endpoint calls merge_run_worktree) — this
+       wrapper's job is only to guarantee the real checkout was never at
+       risk during execution.
+    """
+    effective_run_id = run_id or generate_run_id()
+    try:
+        real_repo_root, _source = resolve_repo_root()
+    except Exception as exc:
+        # Can't even resolve the real repo — nothing to isolate, fail loud
+        # rather than silently running against an undefined location.
+        raise RuntimeError(f"Cannot resolve real repo root before creating run worktree: {exc}")
+
+    wt_result = create_run_worktree(effective_run_id, real_repo_root)
+    if not wt_result.get("success"):
+        raise RuntimeError(f"Failed to create isolated run worktree: {wt_result.get('error')}")
+
+    set_run_worktree_override(wt_result["worktree_path"])
+    try:
+        return _run_pipeline_impl(
+            task,
+            run_id=effective_run_id,
+            cancellation_token=cancellation_token,
+            retry_of=retry_of,
+            label=label,
+        )
+    finally:
+        # Always clear the override first so subsequent calls (status
+        # checks, other runs) don't accidentally resolve into a worktree
+        # that's about to be deleted.
+        set_run_worktree_override(None)
+        # Discard by default. The worktree is only preserved (not deleted)
+        # if the human operator later approves via /approve, which calls
+        # merge_run_worktree() itself and does its own teardown — by that
+        # point this discard has already run, so /approve must re-create
+        # nothing; instead we keep the worktree alive here ONLY when the run
+        # ended in AWAITING_HUMAN_APPROVAL. Simplest correct rule: discard
+        # happens here for every outcome EXCEPT awaiting-approval, which is
+        # signaled by inspecting the run's own event log.
+        try:
+            run_dir = (Path(__file__).resolve().parent.parent / ".bum" / "runs" / effective_run_id)
+            events_file = run_dir / "events.jsonl"
+            awaiting_approval = False
+            if events_file.exists():
+                for line in events_file.read_text(encoding="utf-8").splitlines():
+                    try:
+                        rec = json.loads(line)
+                    except Exception:
+                        continue
+                    if rec.get("event") == "pipeline_finished":
+                        status = (rec.get("payload", {}) or {}).get("final_status")
+                        awaiting_approval = (status == "AWAITING_HUMAN_APPROVAL")
+        except Exception:
+            awaiting_approval = False
+
+        if not awaiting_approval:
+            try:
+                discard_run_worktree(effective_run_id, real_repo_root)
+            except Exception as exc:
+                print(f"[WARN] Failed to discard run worktree {effective_run_id}: {exc}", flush=True)
+
+
+def _run_pipeline_impl(
+    task: str,
+    run_id: Optional[str] = None,
+    cancellation_token: Optional[CancellationToken] = None,
+    retry_of: Optional[str] = None,
+    label: Optional[str] = None,
+) -> str:
     logger = EventLogger(run_id=run_id)
     set_current_logger(logger)
     pipeline_start_time = time.time()
@@ -685,11 +771,13 @@ def run_pipeline(
 
     # Baseline Checks
     print("\nBASELINE CHECK STARTED", flush=True)
-    # Guarantee a clean working tree before baseline checks
-    print("Resetting workspace to clean HEAD...", flush=True)
-    run_safe_git_command(["git", "reset", "--hard", "HEAD"])
-    run_safe_git_command(["git", "clean", "-fd"])
-
+    # NOTE: no destructive reset/clean here. This stage used to force
+    # `git reset --hard && git clean -fd` against the real checkout before
+    # every run, which permanently destroyed uncommitted work at least once
+    # (history.tsx / analytics.tsx). The run now operates inside an isolated
+    # git worktree (see run_pipeline()'s wrapper) that is freshly checked out
+    # from a clean HEAD, so it is already clean by construction — nothing to
+    # reset. We only sanity-check that it is in fact clean.
     git_init = run_safe_git_command(["git", "status", "--short"])
     if git_init["returncode"] != 0:
         emit_event(

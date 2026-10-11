@@ -32,6 +32,87 @@ from orchestrator.repo_tools import (
     resolve_repo_root,
     WORKSPACE_ROOT,
 )
+from orchestrator.worktree_tools import merge_run_worktree, discard_run_worktree
+
+import subprocess
+import time as _time
+
+_AGENTS_ROOT = AGENTS_ROOT  # alias for readability below
+_SERVER_BOOT_TIME = _time.time()
+
+
+def _git_commit_hash(repo_dir: Path) -> Optional[str]:
+    """Best-effort current commit hash for a directory. Returns None if not
+    a git repo or git is unavailable — callers must handle that gracefully."""
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_dir,
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode == 0:
+            return proc.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def _git_commit_message(repo_dir: Path, commit_hash: Optional[str]) -> Optional[str]:
+    if not commit_hash:
+        return None
+    try:
+        proc = subprocess.run(
+            ["git", "log", "-1", "--format=%s", commit_hash],
+            cwd=repo_dir,
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode == 0:
+            return proc.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+# Captured once at process import time — this is "what code is actually
+# loaded and running right now", independent of whatever Syncthing has since
+# written to disk. Python does not hot-reload already-imported modules, so
+# a .py edit synced in after this point will NOT be live until the service
+# (bum-agent-flow / uvicorn process) is restarted.
+_BOOT_COMMIT_HASH = _git_commit_hash(_AGENTS_ROOT)
+_BOOT_COMMIT_MESSAGE = _git_commit_message(_AGENTS_ROOT, _BOOT_COMMIT_HASH)
+
+
+def get_version_info() -> Dict[str, Any]:
+    """Compare the commit hash this process booted with against whatever is
+    currently on disk. A mismatch means Syncthing has synced newer BUM
+    orchestrator code than what's actually loaded in memory — the
+    bum-agent-flow service needs a restart before any fix in that newer
+    commit takes effect. This directly targets the recurring 'shipped a fix,
+    forgot to restart the Pi service, burned a run on stale code' failure
+    mode logged in MASTER_TODO.md."""
+    current_hash = _git_commit_hash(_AGENTS_ROOT)
+    is_stale = bool(
+        _BOOT_COMMIT_HASH and current_hash and _BOOT_COMMIT_HASH != current_hash
+    )
+    return {
+        "boot_commit": _BOOT_COMMIT_HASH,
+        "boot_commit_message": _BOOT_COMMIT_MESSAGE,
+        "current_commit_on_disk": current_hash,
+        "current_commit_message": _git_commit_message(_AGENTS_ROOT, current_hash) if is_stale else _BOOT_COMMIT_MESSAGE,
+        "is_stale": is_stale,
+        "server_boot_time": _SERVER_BOOT_TIME,
+        "warning": (
+            "Newer BUM orchestrator code is on disk than what this running service "
+            "loaded at boot. Restart the bum-agent-flow service before relying on "
+            "any fix from the newer commit(s) — Python does not hot-reload."
+        ) if is_stale else None,
+    }
 
 app = FastAPI(
     title="BUM Multi-Agent SWE Orchestrator API",
@@ -71,6 +152,7 @@ async def get_projects():
         "projects": projects,
         "active_path": str(active_root),
         "source": source,
+        "version": get_version_info(),
     }
 
 
@@ -314,11 +396,33 @@ async def approve_run(run_id: str):
         },
     )
 
+    # Merge the run's isolated worktree branch into the real checkout now
+    # that a human has approved it. This is the ONLY path by which a
+    # pipeline run's changes reach the real checkout (see worktree_tools.py).
+    try:
+        real_repo_root, _source = resolve_repo_root()
+        merge_result = merge_run_worktree(run_id, real_repo_root)
+    except Exception as exc:
+        merge_result = {"success": False, "error": str(exc)}
+
+    if not merge_result.get("success"):
+        # Approval is recorded, but surface the merge failure distinctly so
+        # the operator knows the real checkout was NOT updated and the
+        # worktree/branch were preserved for manual recovery.
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Run '{run_id}' was approved but merging into the real checkout failed: "
+                f"{merge_result.get('error')}"
+            ),
+        )
+
     return {
         "accepted": True,
         "run_id": run_id,
         "status": "approved",
         "event": event_record,
+        "merge": merge_result,
     }
 
 
@@ -364,23 +468,44 @@ async def reject_run(run_id: str, req: Optional[RejectRunRequest] = None):
         },
     )
 
+    # The run's isolated worktree never touched the real checkout — discard
+    # it (and its throwaway branch) now that it's been explicitly rejected.
+    try:
+        real_repo_root, _source = resolve_repo_root()
+        discard_result = discard_run_worktree(run_id, real_repo_root)
+    except Exception as exc:
+        discard_result = {"error": str(exc)}
+
     return {
         "accepted": True,
         "run_id": run_id,
         "status": "rejected",
         "reason": clean_reason,
         "event": event_record,
+        "worktree_cleanup": discard_result,
     }
 
 
 
 @app.get("/api/health")
 async def health():
-    """Basic health check endpoint."""
+    """Basic health check endpoint. Includes deployed-code version info so a
+    stale-vs-live code mismatch is visible without a separate call."""
     return {
         "status": "ok",
         "service": "trayne-agent-flow",
+        "version": get_version_info(),
     }
+
+
+@app.get("/api/version")
+async def version():
+    """Dedicated endpoint for the Web UI header's code-version banner.
+    Reports the git commit this running process actually booted with vs.
+    whatever commit is currently on disk (post-Syncthing-sync). See
+    get_version_info() for why this matters — the service does not
+    hot-reload .py changes."""
+    return get_version_info()
 
 
 @app.get("/api/runs")
