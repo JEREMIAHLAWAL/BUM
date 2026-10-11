@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEFAULT_PROVIDER_TIMEOUT_SECONDS = 120.0
-DEFAULT_MAX_TOKENS = 8192
+DEFAULT_MAX_TOKENS = 16384
 
 
 class ProviderError(Exception):
@@ -89,7 +89,23 @@ def call_openrouter(
             ],
             timeout=req_timeout,
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        if not content or not content.strip():
+            finish_reason = getattr(response.choices[0], "finish_reason", "unknown")
+            hint = (
+                " This means the model hit the max_tokens output limit before producing any "
+                "visible text (DEFAULT_MAX_TOKENS may need raising for this role)."
+                if finish_reason == "length"
+                else ""
+            )
+            raise ProviderError(
+                f"OpenRouter returned empty content (finish_reason={finish_reason}).{hint} "
+                "The model may have returned only a tool-call/refusal with no text content.",
+                error_type="PROVIDER_EMPTY_RESPONSE",
+                provider="openrouter",
+                model=model,
+            )
+        return content
     except OATimeoutError as exc:
         raise ProviderTimeoutError(
             f"OpenRouter request timed out after {req_timeout:.1f}s: {exc}",
@@ -114,6 +130,8 @@ def call_openrouter(
         err_msg = str(exc)
         err_type = "PROVIDER_CREDIT_ERROR" if ("credit" in err_msg.lower() or "balance" in err_msg.lower()) else "PROVIDER_REQUEST_FAILED"
         raise ProviderAuthError(err_msg, error_type=err_type, provider="openrouter", model=model) from exc
+    except ProviderError:
+        raise
     except Exception as exc:
         raise ProviderError(f"OpenRouter request failed: {exc}", provider="openrouter", model=model) from exc
 
@@ -140,7 +158,7 @@ def call_anthropic(
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=8192,
+            max_tokens=DEFAULT_MAX_TOKENS,
             system=system_prompt,
             messages=[
                 {
@@ -151,15 +169,31 @@ def call_anthropic(
             timeout=req_timeout,
         )
 
+        text_result = None
         for block in response.content:
             if getattr(block, "type", None) == "text":
-                return getattr(block, "text", "")
+                text_result = getattr(block, "text", "")
+                break
 
-        for block in response.content:
-            if hasattr(block, "text"):
-                return block.text
+        if text_result is None:
+            for block in response.content:
+                if hasattr(block, "text"):
+                    text_result = block.text
+                    break
 
-        return str(response.content[0])
+        if text_result is None and response.content:
+            text_result = str(response.content[0])
+
+        if not text_result or not text_result.strip():
+            stop_reason = getattr(response, "stop_reason", "unknown")
+            raise ProviderError(
+                f"Anthropic returned empty content (stop_reason={stop_reason}). "
+                "The model may have returned only a tool-call/refusal with no text content.",
+                error_type="PROVIDER_EMPTY_RESPONSE",
+                provider="anthropic",
+                model=model,
+            )
+        return text_result
     except APITimeoutError as exc:
         raise ProviderTimeoutError(
             f"Anthropic request timed out after {req_timeout:.1f}s: {exc}",
@@ -184,6 +218,8 @@ def call_anthropic(
         err_msg = str(exc)
         err_type = "PROVIDER_CREDIT_ERROR" if ("credit" in err_msg.lower() or "balance" in err_msg.lower()) else "PROVIDER_REQUEST_FAILED"
         raise ProviderAuthError(err_msg, error_type=err_type, provider="anthropic", model=model) from exc
+    except ProviderError:
+        raise
     except Exception as exc:
         raise ProviderError(f"Anthropic request failed: {exc}", provider="anthropic", model=model) from exc
 
