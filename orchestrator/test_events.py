@@ -136,7 +136,8 @@ class TestMockPipelineEventSequence(unittest.TestCase):
              patch("orchestrator.pipeline.write_pipeline_file"), \
              patch("orchestrator.pipeline.get_untracked_files_content", return_value=""), \
              patch("orchestrator.pipeline.run_agent") as mock_agent, \
-             patch("orchestrator.pipeline.write_file", return_value={"action": "created", "path": "src/app/new.tsx"}):
+             patch("orchestrator.pipeline.write_file", return_value={"action": "created", "path": "src/app/new.tsx"}), \
+             patch("orchestrator.pipeline.create_micro_commit", return_value={"created": False, "reason": "mocked_in_test"}):
 
             def agent_side_effect(role, prompt):
                 if role == "planner":

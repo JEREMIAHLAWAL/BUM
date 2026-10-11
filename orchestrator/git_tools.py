@@ -12,6 +12,9 @@ ALLOWED_GIT_COMMANDS = {
     ("git", "reset", "--hard", "HEAD"),
     ("git", "reset", "--hard"),
     ("git", "clean", "-fd"),
+    ("git", "rev-parse", "HEAD"),
+    ("git", "add", "."),
+    ("git", "add", "-A"),
 }
 
 
