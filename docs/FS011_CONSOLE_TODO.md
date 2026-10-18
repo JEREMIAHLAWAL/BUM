@@ -42,10 +42,12 @@
 
 ## BUM-02 — Run-scoped artifacts and safe resume
 
-- [ ] Inspect preserved partial changes in `pipeline.py`, `agent_flow/server.py`, `resume_test_review.py` and `test_artifact_scope_and_batch.py`; do not assume they are complete.
-- [ ] Ensure a selected project/run cannot read another project's handoff/salvage. Initialize its artifact directory before writes, restore scope after failure, and publish provenance/path metadata.
-- [ ] Ensure legacy `/resume` cannot operate against shared artifacts or the wrong checkout. A useful refusal with safe retry guidance is acceptable until real run-scoped recovery exists.
-- [ ] Ensure canonical resolved task/brief reaches all existing tool-less stages, not only Planner. Test isolation without live provider or repository effects.
+- [x] Inspect preserved partial changes in `pipeline.py`, `agent_flow/server.py`, `resume_test_review.py` and `test_artifact_scope_and_batch.py`; do not assume they are complete.
+- [x] Ensure a selected project/run cannot read another project's handoff/salvage. Initialize its artifact directory before writes, restore scope after failure, and publish provenance/path metadata.
+- [x] Ensure legacy `/resume` cannot operate against shared artifacts or the wrong checkout. A useful refusal with safe retry guidance is acceptable until real run-scoped recovery exists.
+- [x] Ensure canonical resolved task/brief reaches all existing tool-less stages, not only Planner. Test isolation without live provider or repository effects.
+
+**Completed October 18, 2026:** exact tested code `44a5e19e0432bb0ca64c474aac7c00aa9bb9bfdb`. Audited import-safety prerequisite: 3 tests OK, 0.027s; then 18 scoped artifact/source/resume tests OK, 0.597s, zero denied side-effect attempts. All five roles, Planner retry and both implementation repairs retain original source. Foreign/missing-project retry refuses before a worker; legacy resume stays disabled. No batch/contract tests, real worktree/provider operations, console restart or auth. Evidence, limitations and next-chat prompt: [BUM-02 handoff](BUM-02_HANDOFF.md). BUM-03/04/05 remain pending; stop here.
 
 **Exit:** real cross-project marker regression, scope restoration, resume guard and source propagation tests pass; no unrelated artifact contamination. Do not complete the batch task implicitly.
 

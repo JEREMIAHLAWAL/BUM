@@ -1,0 +1,64 @@
+{
+  "python": "3.14.7 (main, Sep  1 2026, 14:17:30) [MSC v.1944 64 bit (AMD64)]",
+  "scratch": "C:\\Users\\2880441\\AppData\\Local\\hermes\\cache\\scratch",
+  "groups": [
+    {
+      "name": "import_safety",
+      "tests": [
+        "orchestrator.test_legacy_import_safety"
+      ],
+      "tests_run": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "ok": true,
+      "elapsed_seconds": 0.11,
+      "log": "test_legacy_imports_have_no_provider_command_git_or_file_side_effects (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_imports_have_no_provider_command_git_or_file_side_effects) ... ok\ntest_legacy_scripts_have_explicit_manual_entrypoints (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_scripts_have_explicit_manual_entrypoints) ... ok\ntest_reviewer_git_policy_probe_never_reaches_repository_or_subprocess (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_reviewer_git_policy_probe_never_reaches_repository_or_subprocess) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.027s\n\nOK\n"
+    },
+    {
+      "name": "bum02_scoped",
+      "tests": [
+        "orchestrator.test_bum02_artifacts",
+        "orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests",
+        "orchestrator.test_artifact_scope_and_batch.CanonicalSourceStageTests"
+      ],
+      "tests_run": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "ok": true,
+      "elapsed_seconds": 2.91,
+      "log": "test_context_restored_after_impl_and_setup_failure (orchestrator.test_bum02_artifacts.ArtifactRegressionTests.test_context_restored_after_impl_and_setup_failure) ... ok\ntest_duplicate_and_invalid_run_ids_do_not_overwrite_artifacts (orchestrator.test_bum02_artifacts.ArtifactRegressionTests.test_duplicate_and_invalid_run_ids_do_not_overwrite_artifacts) ... ok\ntest_malformed_legacy_provenance_fails_closed (orchestrator.test_bum02_artifacts.ArtifactRegressionTests.test_malformed_legacy_provenance_fails_closed) ... ok\ntest_scoped_handoff_requires_matching_project_and_artifact_path (orchestrator.test_bum02_artifacts.ArtifactRegressionTests.test_scoped_handoff_requires_matching_project_and_artifact_path) ... ok\ntest_two_projects_and_retry_never_import_previous_artifacts (orchestrator.test_bum02_artifacts.ArtifactRegressionTests.test_two_projects_and_retry_never_import_previous_artifacts) ... ok\ntest_execution_manager_default_uses_public_isolated_wrapper (orchestrator.test_bum02_artifacts.ResumeRegressionTests.test_execution_manager_default_uses_public_isolated_wrapper) ... ok\ntest_legacy_resume_and_manual_resume_have_no_effects (orchestrator.test_bum02_artifacts.ResumeRegressionTests.test_legacy_resume_and_manual_resume_have_no_effects) ... ok\ntest_retry_rejects_foreign_project_before_worker (orchestrator.test_bum02_artifacts.ResumeRegressionTests.test_retry_rejects_foreign_project_before_worker) ... ok\ntest_retry_rejects_missing_project_provenance_before_worker (orchestrator.test_bum02_artifacts.ResumeRegressionTests.test_retry_rejects_missing_project_provenance_before_worker) ... ok\ntest_same_project_retry_is_new_full_pipeline_with_lineage_only (orchestrator.test_bum02_artifacts.ResumeRegressionTests.test_same_project_retry_is_new_full_pipeline_with_lineage_only) ... ok\ntest_all_five_roles_planner_retry_and_both_repairs_share_frozen_real_source (orchestrator.test_bum02_artifacts.SourceRegressionTests.test_all_five_roles_planner_retry_and_both_repairs_share_frozen_real_source) ... ok\ntest_legacy_resume_http_refuses_before_starting_worker (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_legacy_resume_http_refuses_before_starting_worker) ... ok\ntest_manual_legacy_resume_refuses_before_reading_or_running_commands (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_manual_legacy_resume_refuses_before_reading_or_running_commands) ... ok\ntest_real_helpers_use_scope_before_impl_and_restore_on_exception (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_real_helpers_use_scope_before_impl_and_restore_on_exception) ... ok\ntest_run_details_exposes_exact_persisted_artifact_context (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_run_details_exposes_exact_persisted_artifact_context) ... ok\ntest_unprovenanced_or_other_project_shared_salvage_never_autoloads (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_unprovenanced_or_other_project_shared_salvage_never_autoloads) ... ok\ntest_actual_file_reference_content_is_frozen_for_all_stages (orchestrator.test_artifact_scope_and_batch.CanonicalSourceStageTests.test_actual_file_reference_content_is_frozen_for_all_stages) ... ok\ntest_every_actual_stage_receives_once_resolved_immutable_brief (orchestrator.test_artifact_scope_and_batch.CanonicalSourceStageTests.test_every_actual_stage_receives_once_resolved_immutable_brief) ... ok\n\n----------------------------------------------------------------------\nRan 18 tests in 0.597s\n\nOK\n"
+    }
+  ],
+  "denied_attempts": [],
+  "allowed_stdlib_socketpairs": [
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    },
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    },
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    },
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    },
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    },
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    }
+  ],
+  "ok": true,
+  "tested_commit": "44a5e19e0432bb0ca64c474aac7c00aa9bb9bfdb",
+  "command": "python -B docs/evidence/BUM-02/run_offline.py --output C:/Users/2880441/AppData/Local/hermes/cache/scratch/bum02-exact-head-audit.json"
+}
