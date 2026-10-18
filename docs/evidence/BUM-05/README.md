@@ -1,10 +1,11 @@
 # BUM-05 verification entrypoints
 
-Status: reopened; acceptance is pending. These scripts are evidence tooling, not the five-role implementation pipeline.
+Status: bounded BUM-05 acceptance complete at tested source `396ff0a4ff713714c1c4b963767dfb7d58e7bc1d`. These scripts are evidence tooling, not the five-role implementation pipeline. Start with `FINAL_RESULTS.json`, `INDEPENDENT_REVIEW.md` and `../../BUM-05_HANDOFF.md`. This evidence publication is a documentation-only successor, not the tested SHA.
 
 - `run_offline.py`: import gate followed by full offline tests, executable provenance and side-effect audit. Dirty diagnostic runs are never acceptance. Native/child-process fixture permissions must be explicitly reviewed; no blanket subprocess bypass.
 - `run_preparation.py`: separate real isolated FinderShip preparation smoke, no dotenv/provider calls; requires explicit live mutation scope and performs owned cleanup/readback.
 - `serve_readiness.py`: explicit operator-authorized BUM-local dotenv loading and one unchanged Planner invocation, then the unchanged real FastAPI console behind an external GET/path-only boundary. No pipeline worker or implementation stage is started. Standard provider SDK retries remain configured by production code. The probe report alone never declares console readiness.
+- `serve_capture.py`: revalidates the hash-pinned genuine Planner artifact against unchanged production code, configuration, instructions, source prompt and physical run metadata. Requires zero write authority. Explicitly **not a new live call**, no dotenv/provider invocation, and no implementation authorization. Final current-console proof used this mode after the original harness wrongly required writable authority.
 - `verify_loaded.py`: independent loopback HTTP/PID/socket/version/project/artifact/read-only-boundary readback of that instance. Captures a historical readiness observation, not indefinite future service availability.
 - `test_*.py`: bounded negative and harness-contract regressions. These are separate from the complete orchestrator suite and their counts must not be conflated.
 
@@ -12,4 +13,10 @@ Status: reopened; acceptance is pending. These scripts are evidence tooling, not
 
 `preservation-before.json` is the initial reference for approved role configuration, fifteen canonical sources and four transfer inputs. It does not prove preservation by itself. The coordinator additionally captured full tracked-file bytes, all five instruction hashes and 23,369 dependency file digests in scratch before new smoke work. Authorized work-status documentation changes are accounted for separately, not described as unchanged baseline status.
 
-Final evidence must name the exact tested/reviewed SHA, runner hashes, actual counts and errors, cleanup readback, authorized documentation deltas, limitations, and publication SHA. A documentation-only successor commit is not the tested executable head unless re-executed explicitly.
+The final result names the exact tested/reviewed SHA, actual counts, raw runner identity/hashes, failures and recoveries, cleanup readback and authorized documentation deltas. `FINAL_RESULTS.json` indexes 26 `.json.gz` reports with both compressed and uncompressed SHA-256. They are raw captured JSON, not regenerated summaries. Load them with Python's `gzip.decompress` and `json.loads`, then compare the indexed hash. `bum05-exact-readonly.json.gz` is the final committed-head full audit; earlier exact-head reports and original failed readiness/cleanup records are retained separately.
+
+The original preparation runner returned false only because immediate cleanup exhausted bounded WinError 32 retries. `bum05-prep-cleanup-recovery-2.json.gz` plus final owning-registry/branch readback establish later completion; the original result remains false. `pnpm run lint` is not the unexecuted manifest-wide `pnpm check` gate.
+
+The single actual Planner invocation ran at `4ed2d1c8b500beb53d987d50c8cb5943ddb3e3c1`. Its exact saved output is published in `genuine-planner-output.md.gz`, separately hashed in the machine results; this is model text, not accepted implementation authority. Current-console proof at `396ff0a...` revalidated that genuine zero-authority artifact; no fresh provider result is claimed. The proof service was stopped and its PID/listener verified absent before this publication.
+
+`console-readonly.png` and the browser report are preview evidence only. The intentionally restricted SSE/history routes can show Offline/Not configured/Queued and generic main/model-default labels. Those labels do not establish Git branch, loaded configuration, queued execution or backend liveness. Use exact HTTP/PID/Git/config checks, not UI placeholders. No authentication implementation or normal executable FS-011 contract was produced.

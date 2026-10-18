@@ -1,0 +1,419 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-18T18:58:41Z",
+  "scope": "BUM-05 bounded console readiness only; no FS-011 implementation or authorization",
+  "tested_source_commit": "396ff0a4ff713714c1c4b963767dfb7d58e7bc1d",
+  "reviewed_source_tree": "f9bf55d5716e3ead086dce3a85dc980439ca522d",
+  "combined_review_base": "000e76afb8f2cef53f2639f3a299a633c80feb8f",
+  "publication": "Documentation/evidence-only successor; not itself the executed source commit",
+  "bum05_bounded_complete": true,
+  "gates": {
+    "exact_committed_full_suite": true,
+    "harness_contracts": true,
+    "deliberate_setup_failure_retained": true,
+    "installed_negative_probes": true,
+    "git_negative_probes": true,
+    "child_negative_probes": true,
+    "independent_combined_review_and_followups": true,
+    "real_preparation_checks": true,
+    "preparation_cleanup_recovered": true,
+    "earlier_owned_leftovers_removed": true,
+    "full_content_preservation": true,
+    "genuine_single_planner_invocation_evidence": true,
+    "current_console_independent_http_readback": true,
+    "console_instance_stopped_after_proof": true
+  },
+  "test_results": [
+    {
+      "phase": "import_safety",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.0365746000315994
+    },
+    {
+      "phase": "full_offline_suite",
+      "tests": 188,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 86.27938889991492
+    }
+  ],
+  "harness_unittests": 22,
+  "full_modules": 31,
+  "unexpected_audit_denials": 0,
+  "allowed_fixture_process_records": 569,
+  "python_child_audit_reports": 32,
+  "expected_negative_denials": {
+    "installed_hook": 8,
+    "git_policy": 8,
+    "child_policy": 4
+  },
+  "preparation": {
+    "actually_run_at": "37436552690ad3f308421805c326c32e8e7a12fb",
+    "finder_head": "ff1094f8f22c51f846702bbb1cc2f6a6bf3b842e",
+    "run_id": "run_bum05_prep_20261018T181757Z_35da0a3839b442e2abc38527734cd399",
+    "original_runner_success": false,
+    "original_runner_checks": {
+      "cleanup": false,
+      "content_preservation": true,
+      "dependency_isolation": true,
+      "exact_head_manifest_and_owning_registry": true,
+      "historical_inputs_and_role_config": true,
+      "lint_smoke_not_pnpm_check": true,
+      "source_identity_preserved": true,
+      "typecheck": true,
+      "versions": true
+    },
+    "cleanup_recovered_separately": true,
+    "production_and_preparation_runner_unchanged_to_tested_source": true,
+    "registry_and_branches_restored": true,
+    "manifest_pnpm_check_executed": false
+  },
+  "planner": {
+    "genuine_invocation_head": "4ed2d1c8b500beb53d987d50c8cb5943ddb3e3c1",
+    "genuine_invocation_pid": 25468,
+    "artifact_dir": "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\runs\\run_bum05_readiness_20261018T182710Z_7e4474\\pipeline",
+    "output_sha256": "355c7f8256b39f9fc4b6697d98f50216d222867ec97eb73c0c35ed4e9a91b83a",
+    "published_actual_output": {
+      "file": "genuine-planner-output.md.gz",
+      "format": "gzip markdown; actual model artifact, not executable authority",
+      "bytes": 11281,
+      "uncompressed_sha256": "355c7f8256b39f9fc4b6697d98f50216d222867ec97eb73c0c35ed4e9a91b83a",
+      "compressed_sha256": "5fa43b78505fb7073412f881dcdf10ceb526d24aa5d2b65d601f0702a206daf2"
+    },
+    "original_harness_failure_retained": {
+      "class": "RuntimeError",
+      "error_type": "READINESS_FAILED"
+    },
+    "current_mode": "CAPTURE_REVALIDATION_READ_ONLY",
+    "new_provider_calls_during_revalidation": 0,
+    "new_dotenv_loads_during_revalidation": 0,
+    "implementation_write_grants": []
+  },
+  "loaded_roles": {
+    "planner": {
+      "provider": "openrouter",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "instructions": "planner/instructions.md",
+      "max_tokens": 16384,
+      "reasoning": {
+        "effort": "low"
+      }
+    },
+    "frontend": {
+      "provider": "openrouter",
+      "model": "anthropic/claude-sonnet-5.5",
+      "instructions": "frontend/instructions.md"
+    },
+    "backend": {
+      "provider": "openrouter",
+      "model": "anthropic/claude-sonnet-5.5",
+      "instructions": "backend/instructions.md"
+    },
+    "tester": {
+      "provider": "openrouter",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "instructions": "tester/instructions.md"
+    },
+    "reviewer": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-5",
+      "instructions": "reviewer/instructions.md"
+    }
+  },
+  "runtime_versions": {
+    "node": "v24.22.0",
+    "pnpm": "10.9.0",
+    "pnpm_exec_node": "v24.22.0"
+  },
+  "loaded_console": {
+    "head": "396ff0a4ff713714c1c4b963767dfb7d58e7bc1d",
+    "proof_pid": 30416,
+    "http_checks": {
+      "exact_loaded_version": true,
+      "active_project": true,
+      "idle": true,
+      "artifact_context": true,
+      "artifact_location": true,
+      "planner_output": true,
+      "runtime_versions": true,
+      "five_roles": true,
+      "planner_validation": true,
+      "role_config_preserved": true,
+      "role_instructions_preserved": true,
+      "read_only_boundary": true,
+      "still_idle_after_denials": true
+    },
+    "stopped_after_proof": {
+      "verified_at_utc": "2026-10-18T18:43:17Z",
+      "owned_pid": 30416,
+      "owned_pid_absent": true,
+      "loopback_connect_code": 10035,
+      "listener_absent": true,
+      "listener_readback": [],
+      "connect_probe_is_advisory": true
+    },
+    "not_a_persistently_running_service": true
+  },
+  "preservation": {
+    "ok": true,
+    "checks": {
+      "inputs": true,
+      "sources": true,
+      "role_config": true,
+      "instructions": true,
+      "dependencies": true,
+      "branch": true,
+      "only_authorized_documentation_delta": true,
+      "transfer_status_preserved": true
+    },
+    "tracked_file_deltas": [
+      "docs/WORK_STATUS.md"
+    ],
+    "head_before": "18f0890b04a1f753cc1f2a036c46a5b48a790278",
+    "head_after": "ff1094f8f22c51f846702bbb1cc2f6a6bf3b842e",
+    "dependency_regular_files": 23369,
+    "before_sha256": "af0d168092898bc664699358bea0cf528660007af9ecbc12e3079b954ae562d9",
+    "after_sha256": "ba12a99b4ff76978564962277fec1bc891d619fe018336f101900cbfdebe5410"
+  },
+  "reviews": [
+    {
+      "handle": "deleg_dfcd44a0",
+      "tree": "3a06ee6c37761f9c20eba3c49bd02754366785a8",
+      "commit": "37436552690ad3f308421805c326c32e8e7a12fb",
+      "passed": true,
+      "scope": "combined production/regressions plus verification tooling"
+    },
+    {
+      "handle": "deleg_1eec5e64",
+      "tree": "37ae4b0016bc52599bd2935a9e66a6097cfb9ca6",
+      "commit": "4ed2d1c8b500beb53d987d50c8cb5943ddb3e3c1",
+      "passed": true,
+      "scope": "resolved Windows runtime delta"
+    },
+    {
+      "handle": "deleg_bd39d55d",
+      "tree": "f9bf55d5716e3ead086dce3a85dc980439ca522d",
+      "commit": "396ff0a4ff713714c1c4b963767dfb7d58e7bc1d",
+      "passed": true,
+      "scope": "zero-authority readiness and genuine capture revalidation; conditional on actual HTTP proof"
+    }
+  ],
+  "browser_preview": {
+    "observed": {
+      "title": "\ud83d\udc34 BUM \u00b7 Console",
+      "url": "http://127.0.0.1:8900/",
+      "projectSelectors": [
+        {
+          "value": "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\FinderShip",
+          "label": null
+        },
+        {
+          "value": "inherit",
+          "label": null
+        }
+      ],
+      "connectedLabelVisible": false,
+      "ownedReadinessRunVisible": true,
+      "zeroRunningLabelVisible": true
+    },
+    "screenshot": "console-readonly.png",
+    "not_execution_or_configuration_evidence": true,
+    "limitation": "Intentional read-only guard blocks SSE/history-detail/mutation routes; UI Offline, Not configured, Queued, main and model-default labels are not authoritative backend/Git/config facts."
+  },
+  "limitations": [
+    "Trusted native fixture tools are not hostile-code OS confinement.",
+    "Windows sharing locks can exceed bounded retries; preserve ownership and recover explicitly.",
+    "The single genuine Planner invocation ran on 4ed2d1c; current-console proof revalidates that unchanged-production capture, not a second live call.",
+    "Zero-authority planning is not an executable FS-011 contract; no builders or five-stage implementation run occurred.",
+    "pnpm run lint smoke is distinct from unexecuted manifest pnpm check and future FS-011 acceptance checks.",
+    "The proof console was stopped before documentation publication to avoid stale loaded revision claims."
+  ],
+  "evidence_files": [
+    {
+      "file": "bum05-exact-readonly.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 2369361,
+      "uncompressed_sha256": "efa68dc5931a482c3a2d0f4129bbf1414b562479488badff31e3b141e365a318",
+      "compressed_sha256": "d9ae2b8e99780071f3039af31feefe008931dd2a835962f96e3167ea92da1608"
+    },
+    {
+      "file": "bum05-exact-4ed2d1c.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 2368880,
+      "uncompressed_sha256": "224398d0f4d065c82ce797f2939b4fd572b0c83efd302254f7bac736a2b79139",
+      "compressed_sha256": "d827069308d5a7a35d209ebcadcbd724a61d79107c6129449f794ce027183866"
+    },
+    {
+      "file": "bum05-committed-head.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 2368878,
+      "uncompressed_sha256": "15c3252a5f14c2a47890dcf4cc8f727d257d23c7c63cf6b701b56994bc315995",
+      "compressed_sha256": "7a46c0725b4aca562115d06e6fae65e9175184e5c6c329f24700a83cff30e689"
+    },
+    {
+      "file": "bum05-final-contracts.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 11802,
+      "uncompressed_sha256": "3a2b738508f1cb647c5cf1b515771926a87730f644b3c31a41fbf55e40e4b6df",
+      "compressed_sha256": "c1171d1fa5b65ad733466b78358dbc536f65d9bae08edd6452dd2a98ac7d73d7"
+    },
+    {
+      "file": "bum05-final-setup-failure.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 36693,
+      "uncompressed_sha256": "3146a675d026017a060f5c90661fcaf6bd375bc377a21a49ac23370f97622ab3",
+      "compressed_sha256": "454acb30beb55a5ef9957b61b07725697b587987beb93d4c954a4783544c3519"
+    },
+    {
+      "file": "bum05-installed-audit-negatives.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 1420,
+      "uncompressed_sha256": "4ab4d4485c402444ccdab3fac0f90c4755950bf68dea6ebf4c1f9f4ccc7c3f9a",
+      "compressed_sha256": "f47e527b290f238b3a2d009fe87b4779c0a589326f9c3b373daca1033959eace"
+    },
+    {
+      "file": "bum05-git-policy-negatives.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 5047,
+      "uncompressed_sha256": "4154c941591d944befd8016e34fab06e0c5d875eec7fdf48f2d60b419cc8b0c3",
+      "compressed_sha256": "19bcf14b8f394ec39cf6df081120b985778f58cc9ddb006cacd5947a74834282"
+    },
+    {
+      "file": "bum05-child-policy-negatives.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 22229,
+      "uncompressed_sha256": "14e677c0bb3d278968a810c812172de87dfed083fb61e1d0a7678d6b5e19a9f9",
+      "compressed_sha256": "4fd3c3b4de7daf939f84afc981f8eefa81b013612bea1add0a4e778a9988e7af"
+    },
+    {
+      "file": "bum05-review-regression-red.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 4948,
+      "uncompressed_sha256": "239deb1eb14add9e321d9e9c4daf09777bffa18e94938a2d9480103d034ec812",
+      "compressed_sha256": "523c9bacfe3bd766090f440c53a8f9d044f98e388149271df7d678d79b189c83"
+    },
+    {
+      "file": "bum05-preparation-committed.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 63868,
+      "uncompressed_sha256": "42f0eb7fba4a1e6d6afe0cf90c0af19a513a23bfd53c622b5ddfad563d7dcec5",
+      "compressed_sha256": "833bc67522854363ab68e1afe6adeb64d963234c78281d319c351d469c714c28"
+    },
+    {
+      "file": "bum05-prep-cleanup-ownership.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 3335,
+      "uncompressed_sha256": "89b73db9df5aec7a1fcd4dd487a7be2362d4e2071062d98b699ff9ab8ac1c0a6",
+      "compressed_sha256": "4a97026051ccd2fb7849b4d82665f6597fd5754142286dc831229dab8f665954"
+    },
+    {
+      "file": "bum05-prep-cleanup-recovery.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 4165,
+      "uncompressed_sha256": "cbaaf0b53ef8c818e31a1da492af2548408a9417a696fa1f7d8ce6d29589c43f",
+      "compressed_sha256": "60f3db41bbcb4066ca3559608c1e0c9d66c5c5c4bdbbd53e5c29937b44f44e38"
+    },
+    {
+      "file": "bum05-prep-cleanup-recovery-2.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 1232,
+      "uncompressed_sha256": "77bc5c6a897e7dc76e46ebf96ad743b5bec913b9883ae96a2b923be2e1d2953c",
+      "compressed_sha256": "fc3edcf7ce5166992829e523fec952e293e8c84db09a6925fa68891631d009ff"
+    },
+    {
+      "file": "bum05-lock-owners.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 321,
+      "uncompressed_sha256": "9eed041207ea7f26f789241c9f33db1d36b3c7cc3e31fcbd0ac5fa980f2627d8",
+      "compressed_sha256": "5cdbc327b7902164a5383c6df1210eb029d29ca2bad3f4023c6722d562146283"
+    },
+    {
+      "file": "bum05-owned-leftovers.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 6801,
+      "uncompressed_sha256": "7ca82f131c0792c1ff0a6d06571e6dd055f4917d0165741e7cc8c0e4ad53209f",
+      "compressed_sha256": "79edb479383d5f7ad8cb8ec28f3a28195561c597cce5c9053bfbe80c0e8010dd"
+    },
+    {
+      "file": "bum05-inventory-complete.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 5029,
+      "uncompressed_sha256": "812d284a9a1e0b703b0be4f087724283090a29107fe98c43b31f93536afef34c",
+      "compressed_sha256": "ac0b7bcadffef6444907d6a13e5a6e71ce7b55cffd1a1cab4211232b7cfe0c19"
+    },
+    {
+      "file": "bum05-authorized-cleanup.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 2107,
+      "uncompressed_sha256": "d7fa566bf3a947a3bdb69fe791470808b088de62c78a59b7859c81e97e056199",
+      "compressed_sha256": "6c146c48d27d3c8139697acd980421734ca8d4c1f2bdaa100e42d1fa8bc56503"
+    },
+    {
+      "file": "bum05-loaded-3743655.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 1170,
+      "uncompressed_sha256": "02c8dcefa5fcc1c769e494e60ab936d80028945702f2f9a05bd996ae43a3ae94",
+      "compressed_sha256": "a9cafd14f79dec40d9c1df4593034f621bfea21a0c370a87c1bacbfff7e879c3"
+    },
+    {
+      "file": "bum05-loaded-4ed2d1c.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 12316,
+      "uncompressed_sha256": "787e7a45c3c8e44c606034b83cdc01fefe3c081b2ba5a8b5eab116e800fc1433",
+      "compressed_sha256": "70d9263be5585f41f240e9b7ddded9839bf07977d19519c5eeee8845c070c6d1"
+    },
+    {
+      "file": "bum05-loaded-capture.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 11128,
+      "uncompressed_sha256": "dd3dd915ebb7456da535975ea9933c97209decf00e8f9a9318a0fc34daeac5ff",
+      "compressed_sha256": "cf770337a7b0e8d959d38f2fc7194e903bebdf7f16d3217e3afecb50bc95b4a2"
+    },
+    {
+      "file": "bum05-live-http.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 8601,
+      "uncompressed_sha256": "695fa5792a0b288bd66b15ee99e5f316b2d6c7d852ac123158d31567a96b4973",
+      "compressed_sha256": "4d9066bd0f0044d440de9f53ba0dae6641a64452c7f93d16d3feb144dd39f873"
+    },
+    {
+      "file": "bum05-console-stopped.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 230,
+      "uncompressed_sha256": "482e27cf87a3136b472d0ccb9314013b40e4f002159ce2aff1870a0a654f680c",
+      "compressed_sha256": "eb4d8d1619110b5ecd722a347f0418663fc06be3b742557596a1ba8dbe1297c9"
+    },
+    {
+      "file": "bum05-browser-ui.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 396,
+      "uncompressed_sha256": "797e33f2cea6131a8d994d01a36acf09567344d9040f21279ed39ee092b6a986",
+      "compressed_sha256": "3168161a66ee967213a325ec3cf1020025916dd7e3cc7c9b92864d7dbf80f095"
+    },
+    {
+      "file": "bum05-preservation-session-before.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 6276014,
+      "uncompressed_sha256": "af0d168092898bc664699358bea0cf528660007af9ecbc12e3079b954ae562d9",
+      "compressed_sha256": "9c8fffd83523647bc7e52c89f09110bd9034d2b073af74c3cd56c6ce1230a327"
+    },
+    {
+      "file": "bum05-preservation-session-final.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 6275990,
+      "uncompressed_sha256": "ba12a99b4ff76978564962277fec1bc891d619fe018336f101900cbfdebe5410",
+      "compressed_sha256": "6e67a321cc55c36d1db0474612af2c93daf510671a70c8c03eb9ef19c873a12a"
+    },
+    {
+      "file": "bum05-final-preservation-comparison.json.gz",
+      "format": "gzip JSON",
+      "uncompressed_bytes": 669,
+      "uncompressed_sha256": "fef932674dff9eb43ef386b425c6132f88b5c55ff569660657c2089291a9a572",
+      "compressed_sha256": "ec2f0cd4003efd1a02a1b5e1644e8a872f60d1e6004ae830f5b86bd3156d107a"
+    }
+  ]
+}

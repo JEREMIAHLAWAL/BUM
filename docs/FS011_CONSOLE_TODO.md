@@ -86,13 +86,13 @@
 
 Depends on BUM-01 through BUM-04; do not treat earlier green subsets as this gate.
 
-- [ ] Run import-safety gate, then the audited full offline console suite on an exact committed head. Record actual test counts/failures, runner identity, denied attempts, and fail-closed probes.
-- [ ] Obtain independent review of the combined exact diff with base/head, findings, and disposition; auxiliary review is not external five-role execution.
-- [ ] Run a real isolated FinderShip preparation smoke, with verified Node24/pnpm10.9, frozen dependencies, actual checks and complete cleanup of every owned attempt.
-- [ ] Verify loaded revision, active FinderShip project, all five configured identities, artifact location and safe planning/readiness behavior.
-- [ ] Publish BUM code/test/review evidence and a FinderShip readiness handoff only after all prerequisites pass.
+- [x] Import safety and audited full offline suite on exact committed source `396ff0a4ff713714c1c4b963767dfb7d58e7bc1d`: 3 + 188 tests passed, zero failures/errors/skips/unexpected denials; provenance unchanged.
+- [x] Independent combined-diff review and bounded follow-ups identify exact base/tree/commit, blockers and dispositions. See [review record](evidence/BUM-05/INDEPENDENT_REVIEW.md); not external FS Reviewer execution.
+- [x] Real FinderShip Node24.22.0/pnpm10.9 frozen-bootstrap/typecheck/lint smoke passed. Initial cleanup failed closed on WinError 32; scoped recovery and exact path/registry/branch readback passed for all owned attempts. Original failure retained.
+- [x] Exact loaded revision/project/manifest/five identities/scoped artifact/idle state and mutation denials passed independent real HTTP/PID/socket proof. One genuine Planner invocation produced zero write authority; current-console capture revalidation is explicit, not a second live call or implementation contract.
+- [x] Bounded evidence and separate-task handoff authored with full content preservation, raw failure history and exact tested/reviewed identities. Publication is documentation/evidence-only; verify remote refs rather than inferring from this box.
 
-**Reopened October 18, 2026 — BLOCKED:** The prior completion claims and checked boxes were rejected by independent review. The historical 184-test result was unaudited and not exact-head proof; the earlier independent-signoff claim has no supporting artifact. Loaded-console readiness was not established, and two earlier owned smoke leftovers remain pending authorized cleanup. See `C:/Users/2880441/AppData/Local/hermes/cache/scratch/BUM-04-05_INDEPENDENT_REVIEW.md`. BUM-04 remains independently passed for its bounded scope. BUM-05 remediation is in progress; no FS-011 launch is authorized by this document. Historical raw results remain retained, not accepted.
+**Completed October 18, 2026 — bounded BUM-05 gates passed:** [machine results and hashed raw reports](evidence/BUM-05/FINAL_RESULTS.json), [independent review](evidence/BUM-05/INDEPENDENT_REVIEW.md), and [handoff](BUM-05_HANDOFF.md). Separate harness tests: 22 passed. Fifteen canonical sources, four transfer inputs, five instruction files, configuration and 23,369 dependency files preserved; only authorized FinderShip status documentation changed. The proof console was stopped before publication. `pnpm run lint` smoke is not the unexecuted manifest `pnpm check`; native fixture trust is not OS confinement; UI placeholders/Offline labels are not Git/config/API evidence. Historical unsupported completion claims and failed reports remain superseded and retained. No FS-011 implementation or pipeline launch occurred.
 
 **Kickoff:**
 > Work only on BUM-05 from docs/FS011_CONSOLE_TODO.md after its four prerequisites are verified. Consolidate the existing console fixes, run exact-head regression and real isolated smoke/cleanup, obtain independent review, and publish readiness. Do not implement FS-011 in this chat; finish with its kickoff handoff.

@@ -1,41 +1,68 @@
-# BUM-05 — consolidation and readiness handoff
+# BUM-05 — completed bounded console-readiness handoff
 
-October 18, 2026. **BLOCKED pending exact-head execution and independent combined-diff review.** Do not implement FS-011 from this handoff.
+October 18, 2026. **BUM-05 complete for the bounded acceptance gates below. FS-011 was not implemented or started.** A checked box is not evidence; use the exact commits, machine results, raw reports and review record.
 
-## Scope and preservation
+## Exact tested/reviewed state
 
-BUM remains on `fix/fs-011-console-compatibility`, starting HEAD `14ea6a493266294db7014966286984080e58321c`; saved WIP ancestor `000e76afb8f2cef53f2639f3a299a633c80feb8f` and BUM-01–04 history are preserved. BUM-04 independently passed its bounded review, not BUM-05 readiness.
+- **Final tested console/tooling commit:** `396ff0a4ff713714c1c4b963767dfb7d58e7bc1d`.
+- **Exact independently reviewed tree:** `f9bf55d5716e3ead086dce3a85dc980439ca522d`.
+- Combined review base: saved WIP `000e76afb8f2cef53f2639f3a299a633c80feb8f`; BUM-05 parent `14ea6a493266294db7014966286984080e58321c`. All saved WIP and BUM-01–04 history remain preserved on `fix/fs-011-console-compatibility`.
+- Preparation executed at `37436552690ad3f308421805c326c32e8e7a12fb`; its production source and preparation runner are unchanged through the final tested commit. Genuine Planner invocation executed at `4ed2d1c8b500beb53d987d50c8cb5943ddb3e3c1`; the final console revalidated its captured response without a second credential load or provider invocation.
+- This publication is a **documentation/evidence-only successor**, not a claim that its future SHA was already executed. The proof console was stopped before publication, so no stale loaded process is represented as current.
 
-FinderShip remains on `fs-011/authentication`. Authorized documentation-only correction `ff1094f8f22c51f846702bbb1cc2f6a6bf3b842e` descends from `18f0890b04a1f753cc1f2a036c46a5b48a790278`. No authentication source changes. All five existing roles are unchanged; approved config SHA-256 `3c1f8032a3bcb0df09ec1c1ca98bf060c4dc792af9f0700b27cbf27c04abff4b`. Auxiliary infrastructure agents are not the external five-role pipeline.
+## Evidence and actual results
 
-Founder authorized scoped existing-branch commits/pushes, cleanup of the two verified owned smoke leftovers, and one BUM-local dotenv load plus one unchanged read-only Planner invocation. No Hermes credential stores, implementation pipeline, merge, deployment, migrations or live email.
+Primary records: [machine acceptance](evidence/BUM-05/FINAL_RESULTS.json), [independent review and findings/dispositions](evidence/BUM-05/INDEPENDENT_REVIEW.md), [evidence guide](evidence/BUM-05/README.md). Machine results index 26 compressed raw JSON reports with uncompressed/compressed hashes. Original failed reports remain intact.
 
-## Rejected historical evidence
+| Gate | Observed result |
+| --- | --- |
+| Prerequisite import safety | **3 passed**, 0 failures/errors/skips. |
+| Complete audited offline console suite | **188 passed across 31 modules**, 0 failures/errors/skips; no dirty executable inputs; exact tested HEAD above; before/after provenance unchanged. Full-suite unittest duration 86.279 seconds. |
+| Audit/process boundary | **0 unexpected denials**, 569 allowed fixture records and 32 Python-child reports. Installed-hook, Git-policy and child-policy negatives intentionally denied 8, 8 and 4 cases respectively. Trusted native Git is not an OS security sandbox. |
+| Separate harness contracts | **22 passed**; includes setup-failure retention/no full-suite load, missing/staged-added input rejection, API schema, read-only mutation denial, capture tamper/source drift/writable-grant rejection. |
+| Independent combined review | Bounded static PASS plus exact-tree follow-ups. Reviewers did not perform the coordinator's tests or act as the configured FS Reviewer stage. |
+| Real isolated FinderShip preparation | Frozen pnpm bootstrap; Node **v24.22.0**, pnpm **10.9.0**, pnpm-executed Node **v24.22.0**; actual typecheck and lint passed; dependency roots isolated from canonical directories. |
+| Preparation cleanup | Initial runner **exited 1** because WinError 32 sharing locks outlasted bounded cleanup retries. Scoped recovery after ownership readback subsequently removed the exact path, registration and branch. Initial failure is not rewritten as a clean first pass. |
+| Loaded real console | Independent PID/socket/session-header/HTTP checks passed for exact commit `396ff0a...`, active FinderShip project and manifest, five configured identities, artifact location, idle state, zero write authority and rejected mutation/secret-preview requests. |
+| Full content preservation | All **15 canonical sources**, **four transfer inputs**, **five instruction files**, role config and **23,369 dependency files** unchanged. Of 76 tracked FinderShip files, only the explicitly authorized `docs/WORK_STATUS.md` changed. |
 
-Original unsupported completion/sign-off/readiness claims are archived in `evidence/BUM-05/initial-handoff-superseded.txt`. Historical `exact-head-results.json` is unaudited, not acceptance evidence. Checked boxes and baseline hashes alone prove nothing.
+## Fixed blocking findings
 
-## Remediation checkpoint
+Scratch-isolated prompt, provenance, event, cancellation and architecture fixtures; fail-closed provenance/auditing and setup-failure evidence; bounded Git/Python fixture children; complete deleted/index-added executable inventory; real API-schema verification; strict baseline role/version/project/manifest checks; resolved Windows command paths; read-only server boundary; and zero-authority readiness semantics.
 
-- Prompt, project-provenance, event/cancellation and architecture fixtures are scratch-isolated. Original provider-key mocks remain test-only.
-- Offline runner audits before imports, records executable provenance before/after, persists setup failures and exits nonzero on failure or denied attempts. Dirty diagnostics cannot establish acceptance.
-- Native Git is trusted only for enumerated scratch fixtures, with pinned executable, sanitized environment/config/metadata and descendant-trace validation. Python children audit before workloads; lock/junction APIs are narrowly scoped. This is not hostile-native-code OS confinement.
-- Dirty diagnostic: import gate 3/3; full suite 184/184 across 31 modules; zero failures/errors/skips/denials. Not yet committed-head acceptance.
-- Preparation and loaded-console harnesses await committed execution. Preparation guard tests: 3 passed. Readiness guard tests: 5 passed. The unchanged app is externally GET/path-restricted during readiness; probe metadata never independently claims console readiness.
+Independent review also found a retained-run P1: duplicate run IDs could destroy an existing worktree before artifact rejection. Ownership/query preflight and atomic run-ID reservation now precede any creation or teardown. Four new tests cover retained state, errors, sibling preservation and public-wrapper cancellation/context cleanup. This was BUM infrastructure only, not FS-011 application implementation.
 
-## Cleanup and content preservation
+## Five roles and genuine planning evidence
 
-Owned leftovers `run_bum05_smoke_20261018T163734Z_ac3245` and `run_bum05_smoke_20261018T164052Z_e5b0a4` were checked against FinderShip common git directory/HEAD/branches. Surviving tracked bytes matched; no untracked source or process working directories. Founder authorized removal; both paths, registrations and exact branches are verified absent. An initial absent-branch probe was corrected to `show-ref --verify --quiet`, then readback passed.
+The approved configuration SHA-256 remains `3c1f8032a3bcb0df09ec1c1ca98bf060c4dc792af9f0700b27cbf27c04abff4b`:
 
-Scratch evidence: `bum05-owned-leftovers.json`, `bum05-inventory-complete.json`, `bum05-authorized-cleanup.json`, `bum05-preservation-session-before.json`. The content baseline covers 76 tracked files, 15 canonical sources, four transfer inputs, five instruction hashes and 23,369 dependency files, plus links/directories. Authorized work-status documentation is an explicit delta, not unchanged baseline status.
+| Role | Provider | Model |
+| --- | --- | --- |
+| Planner | openrouter | deepseek/deepseek-v4.1-flash |
+| Frontend | openrouter | anthropic/claude-sonnet-5.5 |
+| Backend | openrouter | anthropic/claude-sonnet-5.5 |
+| Tester | openrouter | deepseek/deepseek-v4.1-flash |
+| Reviewer | anthropic | claude-sonnet-5 |
 
-## Remaining gates
+One founder-authorized unchanged Planner invocation returned a genuine 11,281-byte saved markdown artifact at `.bum/runs/run_bum05_readiness_20261018T182710Z_7e4474/pipeline/spec.md`; its exact bytes are published as `evidence/BUM-05/genuine-planner-output.md.gz` with hashes in the machine results. The prompt made every path proposed future ownership only. Production parsing correctly granted **zero** writable files. The first harness wrongly required a writable contract and failed; its report is retained.
 
-1. Independent combined-diff review naming exact base/tree/head, findings and dispositions.
-2. Committed-head audited import/full suites, harness negatives, deliberate setup failure and unchanged provenance.
-3. Real Node24/pnpm10.9 frozen-bootstrap/typecheck/lint smoke, isolation and complete cleanup. `pnpm run lint` is not the unexecuted manifest-wide `pnpm check` gate.
-4. One authorized unchanged Planner call plus strict loaded version/project/manifest/roles/artifact checks; independent HTTP/PID/socket/idle/mutation-denial proof. Provider failure keeps readiness blocked.
-5. After-snapshot full content comparison with only declared documentation deltas; honest final evidence and verified remote refs.
+The corrected read-only gate rejects writable grants rather than relaxing the production parser. Final mode `CAPTURE_REVALIDATION_READ_ONLY` hashes the actual report/artifact, verifies unchanged production code/instructions/identities, and records original call HEAD/PID/failure. It is **not a fresh live call, executable FS-011 contract or builder authorization**. Current-console identity was then proved independently over real HTTP. No second dotenv/provider invocation was used.
 
-## Ready-to-paste continuation
+## Ownership, preservation and shutdown
 
-> Finish BUM-05 only. Read this handoff, `docs/FS011_CONSOLE_TODO.md`, evidence README and freshly fetched FinderShip instructions/status. Preserve all WIP and five roles. Verify exact-head audited full suite, reviewed bounded process fixtures, real preparation/cleanup and read-only loaded-console proof. Do not trust historical checked boxes or implement FS-011. Keep readiness blocked unless every gate has real evidence.
+Founder authorized scoped commits/pushes and removal only after inspection. Both old smoke IDs `run_bum05_smoke_20261018T163734Z_ac3245` and `run_bum05_smoke_20261018T164052Z_e5b0a4`, plus the new preparation ID `run_bum05_prep_20261018T181757Z_35da0a3839b442e2abc38527734cd399`, have absent physical paths, owning FinderShip registrations and exact branches. Other branches/registrations were restored. No unrelated cleanup was performed.
+
+FinderShip's application/source checkpoint is preserved through authorized status-only successors to `18f0890b04a1f753cc1f2a036c46a5b48a790278`; interim correction `ff1094f8f22c51f846702bbb1cc2f6a6bf3b842e` is retained in history. Four untracked transfer inputs remain untracked and byte-identical. Canonical dependencies were content-hashed before and after the real smoke and read-only console proof.
+
+The owned proof PID and listening socket are verified absent after shutdown. Browser preview did load FinderShip and the owned readiness artifact; intentional stream/history restrictions can produce Offline/Not configured/Queued labels, while main/default-model UI labels are not actual Git/config facts. Use the API/PID/Git/config evidence, not these labels, for this bounded result.
+
+## Remaining work and limits
+
+- **No BUM-05 acceptance blocker remains within this bounded scope.** Windows locks can still require explicit recovery; ID reservation failures can retain a slot; untrusted native/external races are not sandboxed.
+- FS-011 implementation, its normal executable Planner contract, coordinator-owned dependencies, browser/mock/live cases, full manifest checks, independent implementation review and founder acceptance remain separate work. `pnpm run lint` smoke is **not** the unexecuted manifest `pnpm check` gate.
+- No merge, deployment, live email, migration, service purchase, provider/model substitution, Hermes credential-store inspection or later FS task occurred. The external five-stage implementation pipeline did not run.
+- Original unsupported completion claims and historical unaudited output remain explicitly superseded, not acceptance evidence.
+
+## Ready-to-paste separate-chat kickoff
+
+> Resume FinderShip FS-011 in a separate task only after reading freshly fetched GitHub `AGENTS.md` and `docs/WORK_STATUS.md`, BUM `docs/BUM-05_HANDOFF.md`, `docs/evidence/BUM-05/FINAL_RESULTS.json`, FinderShip `docs/FS-011_RESUME_TODO.md`, and the published brief/addendum/manifest. BUM's exact tested source is `396ff0a4ff713714c1c4b963767dfb7d58e7bc1d`; later evidence publication is documentation-only. Preserve all WIP, canonical sources, four transfer inputs and the five existing roles. Recheck current branches and ownership; obtain permission for new Git mutations. Start the existing console at the current verified revision and select FinderShip explicitly; do not reuse the zero-authority BUM readiness artifact as an executable contract. Use the founder's Planner → Frontend → Backend → Tester → Reviewer pipeline, resolve the normal contract and coordinator-owned integration gates before builders, and follow all FS-011 acceptance requirements. Do not merge, deploy, send live email, migrate or start FS-012.
