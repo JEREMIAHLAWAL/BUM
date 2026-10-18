@@ -1,4 +1,5 @@
 import json
+import os.path
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -14,49 +15,86 @@ def _ownership_section_lines(spec_text: str):
     deeper ones) end the grant. Inline mentions and fenced examples are not
     authority. Keep this separate from the signature/token extractors.
     """
-    section = None
-    section_level = 0
+    # Each heading carries its effective authority. Popping siblings restores
+    # the parent, never the previous nested owner's/reference section.
+    headings = []
     fence = None
-    for line in spec_text.splitlines():
+    lines = spec_text.splitlines()
+    skip_underline = False
+    for index, line in enumerate(lines):
+        if skip_underline:
+            skip_underline = False
+            continue
+        # Indented code and blockquotes are examples, even inside a grant.
+        if re.match(r"^(?: {4}| {0,3}\t| {0,3}>)", line):
+            continue
         stripped = line.strip()
-        marker = re.match(r"^(`{3,}|~{3,})", stripped)
-        if marker:
-            token = marker.group(1)
-            if fence is None:
-                fence = token
-            elif token[0] == fence[0] and len(token) >= len(fence):
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence is not None:
+            if (marker and marker.group(1)[0] == fence[0]
+                    and len(marker.group(1)) >= len(fence) and not marker.group(2).strip()):
                 fence = None
             continue
-        if fence is not None:
+        if marker:
+            fence = marker.group(1)
             continue
 
-        markdown = re.match(r"^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$", line)
-        label = stripped.removeprefix("**").removesuffix("**").strip()
-        plain = re.fullmatch(r"[A-Za-z][A-Za-z0-9 /(),—–-]*:", label)
-        if markdown or plain:
-            title = markdown.group(2) if markdown else label
-            level = len(markdown.group(1)) if markdown else 7
-            title = title.strip("* ").rstrip(":").strip()
-            title = re.sub(r"^\d+(?:\.\d+)*\.?\s+", "", title)
-            if re.fullmatch(
+        markdown = re.match(r"^ {0,3}(#{1,6})(?:\s+(.*?)|\s*)$", line)
+        underline = (re.fullmatch(r" {0,3}(=+|-+)\s*", lines[index + 1])
+                     if index + 1 < len(lines) and stripped else None)
+        # Do not reinterpret list entries as setext heading text.
+        setext = underline and not re.match(r"^(?:[-+*]\s|>|`|~)", stripped)
+        label = stripped.rstrip(":").strip()
+        bold = re.fullmatch(r"\*\*(.+?)\*\*", label)
+        if bold:
+            label = bold.group(1).rstrip(":").strip()
+        plain = re.fullmatch(r"(?:\d+[a-z]?(?:\.\d+)*\.?\s+)?[A-Za-z][A-Za-z0-9 /(),—–-]*", label)
+        conventional = plain and (stripped.endswith(":") or bold or label.isupper())
+        if markdown or setext or conventional:
+            if markdown:
+                title = re.sub(r"\s+#+\s*$", "", markdown.group(2) or "")
+                level = len(markdown.group(1))
+            elif setext:
+                title = stripped
+                level = 1 if underline.group(1)[0] == "=" else 2
+                skip_underline = True
+            else:
+                title, level = label, 7
+            title = title.rstrip(":").strip().strip("* ").rstrip(":").strip()
+            title = re.sub(r"^\d+[a-z]?(?:\.\d+)*\.?\s+", "", title, flags=re.IGNORECASE)
+            owner = re.match(
+                r"^(?:(?:Frontend|Backend|Tester|Coordinator|Planner|Integrator)\b"
+                r"|(?:Create|Modify)\s*\((?:Frontend|Backend|Tester|Coordinator|Planner|Integrator)\b)",
+                title, re.IGNORECASE,
+            )
+            if (not markdown and not setext and owner
+                    and any(rank == 7 and kind for rank, kind in headings)):
+                level = 8  # Conventional role labels nest under plain authority labels.
+            while headings and headings[-1][0] >= level:
+                headings.pop()
+            parent = headings[-1][1] if headings else None
+            if parent == "reference_files":
+                section = parent  # No nested label can upgrade a read-only section.
+            elif re.fullmatch(
                 r"(?:FILES?(?:\s+TO\s+(?:CREATE(?:\s+OR\s+MODIFY)?|MODIFY|CHANGE))?"
                 r"|FILE\s+(?:MODIFICATION\s+)?BOUNDARIES)(?:\s+\(exact paths\))?",
                 title, re.IGNORECASE,
             ):
-                section, section_level = "file_boundaries", level
-            elif re.fullmatch(r"NEEDS\s+CONTEXT|REFERENCE(?:-ONLY)?\s+FILES", title, re.IGNORECASE):
-                section, section_level = "reference_files", level
-            elif (section == "file_boundaries" and level > section_level and re.match(
-                r"^(?:(?:Frontend|Backend|Tester|Coordinator|Planner|Integrator)\b"
-                r"|(?:Create|Modify)\s*\((?:Frontend|Backend|Tester|Coordinator|Planner|Integrator)\b)",
+                section = "file_boundaries"
+            elif re.fullmatch(
+                r"(?:NEEDS\s+CONTEXT|REFERENCE(?:-ONLY)?\s+FILES)"
+                r"(?:\s+\(READ FOR CONTEXT — DO NOT CREATE OR MODIFY\))?",
                 title, re.IGNORECASE,
-            )):
-                pass  # A nested owner subdivision, not a new authority section.
+            ):
+                section = "reference_files"
+            elif parent == "file_boundaries" and owner:
+                section = parent
             else:
                 section = None
+            headings.append((level, section))
             continue
-        if section:
-            yield section, line
+        if headings and headings[-1][1]:
+            yield headings[-1][1], line
 
 
 def extract_contract_from_spec(spec_text: str, manifest: Optional[BumManifest] = None) -> Dict[str, Any]:
@@ -98,11 +136,30 @@ def extract_contract_from_spec(spec_text: str, manifest: Optional[BumManifest] =
     reference_files: List[str] = []
     paths_by_section = {"file_boundaries": file_boundaries, "reference_files": reference_files}
     for section, line in _ownership_section_lines(spec_text):
-        for path in re.findall(r"[`']?([a-zA-Z0-9_./\-()]+\.[a-zA-Z0-9]+)[`']?", line):
-            if path not in paths_by_section[section]:
+        # Match whole tokens before validating them. Searching for filename
+        # substrings would turn [id]/page.tsx or **/page.tsx into /page.tsx.
+        # A quote is not a token separator: retain the entire chunk so an
+        # unmatched delimiter or an attached suffix cannot manufacture a grant.
+        for match in re.finditer(r"(?:`[^`]*`|'[^']*'|\"[^\"]*\"|[^\s,;<>])+", line):
+            path = match.group(0)
+            if len(path) >= 2 and path[0] in "`'\"" and path[-1] == path[0]:
+                path = path[1:-1]
+            if (re.fullmatch(r"[A-Za-z0-9_./()\[\]-]+\.[A-Za-z0-9]+", path)
+                    and path not in paths_by_section[section]):
                 paths_by_section[section].append(path)
 
-    conflicts = sorted(set(file_boundaries).intersection(reference_files))
+    # Only validated, whole literal paths reach identity comparison. Lexical
+    # normpath catches dot segments/repeated separators; normcase additionally
+    # catches Windows case aliases. Neither performs filesystem/repo lookups.
+    # This identity is ONLY a conflict veto, never a normalized permission grant:
+    # retain the Planner's exact spelling in both stored lists and diagnostics.
+    def identity(path):
+        return os.path.normcase(os.path.normpath(path))
+
+    reference_identities = {identity(path) for path in reference_files}
+    conflicting_identities = {identity(path) for path in file_boundaries} & reference_identities
+    conflicts = sorted({path for path in file_boundaries + reference_files
+                        if identity(path) in conflicting_identities})
     if conflicts:
         raise ValueError("Conflicting writable/reference Planner ownership: " + ", ".join(conflicts))
 
