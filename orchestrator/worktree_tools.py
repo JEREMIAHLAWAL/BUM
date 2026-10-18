@@ -25,6 +25,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -461,10 +462,22 @@ def _teardown_worktree(run_id: str, real_repo_root: Path) -> dict:
             if sys.platform == "win32" and not cleanup_path.startswith("\\\\?\\"):
                 cleanup_path = ("\\\\?\\UNC\\" + cleanup_path[2:] if cleanup_path.startswith("\\\\")
                                 else "\\\\?\\" + cleanup_path)
-            try:
-                shutil.rmtree(cleanup_path)
-            except OSError as exc:
-                details["filesystem_error"] = _bounded_output(exc)
+            # Only Windows sharing/lock violations are transient here. Five
+            # total attempts add at most 1.5s of backoff; other errors stop now.
+            for attempt in range(1, 6):
+                details["filesystem_attempts"] = attempt
+                try:
+                    shutil.rmtree(cleanup_path)
+                    break
+                except OSError as exc:
+                    error = _bounded_output(exc)
+                    details["filesystem_error"] = error
+                    winerror = getattr(exc, "winerror", None)
+                    details.setdefault("filesystem_errors", []).append(
+                        {"attempt": attempt, "winerror": winerror, "error": error})
+                    if sys.platform != "win32" or winerror not in (32, 33) or attempt == 5:
+                        break
+                    time.sleep(0.1 * 2 ** (attempt - 1))
         # Unregister only this path after its files are gone. Never prune
         # unrelated stale/locked worktrees or delete a registered run's branch.
         if not wt_path.exists() and is_registered:

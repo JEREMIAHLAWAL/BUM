@@ -164,6 +164,158 @@ class WorktreeBootstrapTests(unittest.TestCase):
             if root.exists():
                 original_rmtree("\\\\?\\" + str(root))
 
+    @unittest.skipUnless(wt.sys.platform == "win32", "Windows sharing violations")
+    def test_transient_sharing_violation_retries_then_removes_actual_tree(self):
+        for code in (32, 33):
+            with self.subTest(winerror=code):
+                result = self.create()
+                self.assertTrue(result["success"], result)
+                root = result["worktree_path"]
+                original_rmtree = shutil.rmtree
+                failure = PermissionError(13, "fixture transient lock")
+                failure.winerror = code
+                attempts = []
+                def transient(path, *args, **kwargs):
+                    attempts.append(path)
+                    if len(attempts) == 1:
+                        raise failure
+                    return original_rmtree(path, *args, **kwargs)
+                with patch.object(wt.shutil, "rmtree", side_effect=transient):
+                    cleanup = wt.discard_run_worktree("run_bootstrap", self.repo)
+                self.assertTrue(cleanup["worktree_removed"], cleanup)
+                self.assertTrue(cleanup["branch_deleted"], cleanup)
+                self.assertFalse(root.exists())
+                self.assertEqual(len(attempts), 2)
+                self.assertEqual(cleanup["details"]["filesystem_attempts"], 2)
+                self.assertEqual(cleanup["details"]["filesystem_errors"], [
+                    {"attempt": 1, "winerror": code, "error": str(failure)}])
+                self.assertEqual(cleanup["details"]["filesystem_error"], str(failure))
+                self.assertEqual((self.repo / "node_modules" / "canonical-marker").read_text(), "unchanged")
+
+    @unittest.skipUnless(wt.sys.platform == "win32", "Windows sharing violations")
+    def test_persistent_sharing_violations_exhaust_budget_and_preserve_registration(self):
+        for code in (32, 33):
+            with self.subTest(winerror=code):
+                result = self.create()
+                self.assertTrue(result["success"], result)
+                failure = PermissionError(13, "fixture persistent lock")
+                failure.winerror = code
+                with patch.object(wt.shutil, "rmtree", side_effect=failure) as remove, \
+                     patch.object(wt.time, "sleep") as sleep:
+                    cleanup = wt.discard_run_worktree("run_bootstrap", self.repo)
+                self.assertFalse(cleanup["worktree_removed"], cleanup)
+                self.assertFalse(cleanup["branch_deleted"], cleanup)
+                self.assertEqual(remove.call_count, 5)
+                self.assertEqual([call.args[0] for call in sleep.call_args_list], [0.1, 0.2, 0.4, 0.8])
+                self.assertEqual(cleanup["details"]["filesystem_attempts"], 5)
+                self.assertEqual(cleanup["details"]["filesystem_errors"], [
+                    {"attempt": attempt, "winerror": code, "error": str(failure)}
+                    for attempt in range(1, 6)])
+                self.assertTrue(result["worktree_path"].exists())
+                self.assertIn("bum-run/run_bootstrap", self.git("worktree", "list", "--porcelain").stdout)
+                self.git("rev-parse", "--verify", wt.branch_name("run_bootstrap"))
+                self.assertTrue(wt.discard_run_worktree("run_bootstrap", self.repo)["branch_deleted"])
+
+    def test_unrelated_filesystem_errors_are_not_retried(self):
+        failures = [PermissionError(13, "fixture access denied"), OSError(5, "fixture I/O error")]
+        access_denied = PermissionError(13, "fixture Windows access denied")
+        access_denied.winerror = 5
+        failures.append(access_denied)
+        for failure in failures:
+            with self.subTest(error=str(failure)):
+                result = self.create()
+                self.assertTrue(result["success"], result)
+                with patch.object(wt.shutil, "rmtree", side_effect=failure) as remove, \
+                     patch.object(wt.time, "sleep") as sleep:
+                    cleanup = wt.discard_run_worktree("run_bootstrap", self.repo)
+                self.assertFalse(cleanup["worktree_removed"], cleanup)
+                self.assertFalse(cleanup["branch_deleted"], cleanup)
+                self.assertEqual(remove.call_count, 1)
+                sleep.assert_not_called()
+                self.assertEqual(cleanup["details"]["filesystem_attempts"], 1)
+                self.assertEqual(cleanup["details"]["filesystem_error"], str(failure))
+                self.assertIn("bum-run/run_bootstrap", self.git("worktree", "list", "--porcelain").stdout)
+                self.git("rev-parse", "--verify", wt.branch_name("run_bootstrap"))
+                self.assertTrue(wt.discard_run_worktree("run_bootstrap", self.repo)["branch_deleted"])
+
+    def fixture_lock_child(self, path):
+        # A real Windows handle without FILE_SHARE_DELETE; never touches a
+        # canonical file. Only this owned fixture child is released/terminated.
+        script = """
+import ctypes, sys, time
+from ctypes import wintypes
+kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                              ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+kernel.CreateFileW.restype = wintypes.HANDLE
+kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+handle = kernel.CreateFileW(sys.argv[1], 0x80000000, 3, None, 3, 0, None)
+if handle == ctypes.c_void_p(-1).value:
+    raise ctypes.WinError(ctypes.get_last_error())
+try:
+    print('locked', flush=True)
+    sys.stdin.readline()
+    time.sleep(0.05)
+finally:
+    kernel.CloseHandle(handle)
+"""
+        child = subprocess.Popen([wt.sys.executable, "-u", "-c", script, str(path)],
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, text=True)
+        def release():
+            if child.poll() is None:
+                try:
+                    child.communicate("release\n", timeout=5)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.communicate(timeout=5)
+            else:
+                child.communicate(timeout=5)
+        self.addCleanup(release)
+        self.assertEqual(child.stdout.readline().strip(), "locked")
+        return child, release
+
+    @unittest.skipUnless(wt.sys.platform == "win32", "Real Windows sharing lock")
+    def test_real_child_lock_released_during_backoff_allows_cleanup(self):
+        result = self.create()
+        self.assertTrue(result["success"], result)
+        locked = result["worktree_path"] / "fixture-locked.txt"
+        locked.write_text("owned fixture", encoding="utf-8")
+        child, release = self.fixture_lock_child(locked)
+        original_sleep = wt.time.sleep
+        def release_during_backoff(delay):
+            release()
+            original_sleep(delay)
+        with patch.object(wt.time, "sleep", side_effect=release_during_backoff) as sleep:
+            cleanup = wt.discard_run_worktree("run_bootstrap", self.repo)
+        self.assertTrue(cleanup["worktree_removed"], cleanup)
+        self.assertTrue(cleanup["branch_deleted"], cleanup)
+        self.assertEqual(sleep.call_count, 1)
+        self.assertEqual(child.returncode, 0)
+        self.assertEqual(cleanup["details"]["filesystem_attempts"], 2)
+        self.assertEqual(cleanup["details"]["filesystem_errors"][0]["winerror"], 32)
+        self.assertFalse(result["worktree_path"].exists())
+
+    @unittest.skipUnless(wt.sys.platform == "win32", "Real Windows sharing lock")
+    def test_real_child_persistent_lock_preserves_branch_and_registration(self):
+        result = self.create()
+        self.assertTrue(result["success"], result)
+        locked = result["worktree_path"] / "fixture-locked.txt"
+        locked.write_text("owned fixture", encoding="utf-8")
+        child, release = self.fixture_lock_child(locked)
+        cleanup = wt.discard_run_worktree("run_bootstrap", self.repo)
+        self.assertFalse(cleanup["worktree_removed"], cleanup)
+        self.assertFalse(cleanup["branch_deleted"], cleanup)
+        self.assertIsNone(child.poll())
+        self.assertTrue(locked.exists())
+        self.assertEqual(cleanup["details"]["filesystem_attempts"], 5)
+        self.assertEqual([error["winerror"] for error in cleanup["details"]["filesystem_errors"]], [32] * 5)
+        self.assertIn("bum-run/run_bootstrap", self.git("worktree", "list", "--porcelain").stdout)
+        self.git("rev-parse", "--verify", wt.branch_name("run_bootstrap"))
+        release()
+        self.assertEqual(child.returncode, 0)
+        self.assertTrue(wt.discard_run_worktree("run_bootstrap", self.repo)["branch_deleted"])
+
     def test_registration_remove_failure_preserves_branch_even_after_files_removed(self):
         result = self.create()
         self.assertTrue(result["success"], result)
