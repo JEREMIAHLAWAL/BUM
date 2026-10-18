@@ -1,0 +1,39 @@
+{
+  "worktree_removed": true,
+  "branch_deleted": true,
+  "details": {
+    "registration": {
+      "command": "git worktree list --porcelain -z",
+      "returncode": 0,
+      "stdout": "worktree C:/Users/2880441/Documents/AGENTS/JL/FinderShip\u0000HEAD 20e1108f1ed967b80fa660a553d825f7f18eaa91\u0000branch refs/heads/fs-011/authentication\u0000\u0000",
+      "stderr": ""
+    },
+    "filesystem_attempts": 3,
+    "filesystem_error": "[WinError 32] The process cannot access the file because it is being used by another process: '\\\\\\\\?\\\\C:\\\\Users\\\\2880441\\\\Documents\\\\AGENTS\\\\JL\\\\BUM\\\\.bum\\\\worktrees\\\\run_fs011_bootstrap_20261018T065158Z_1a3963\\\\node_modules\\\\.pnpm\\\\ts-api-utils@2.5.0_typescript@6.0.3\\\\node_modules'",
+    "filesystem_errors": [
+      {
+        "attempt": 1,
+        "winerror": 32,
+        "error": "[WinError 32] The process cannot access the file because it is being used by another process: '\\\\\\\\?\\\\C:\\\\Users\\\\2880441\\\\Documents\\\\AGENTS\\\\JL\\\\BUM\\\\.bum\\\\worktrees\\\\run_fs011_bootstrap_20261018T065158Z_1a3963\\\\node_modules\\\\.pnpm\\\\queue-microtask@1.2.3\\\\node_modules\\\\queue-microtask'"
+      },
+      {
+        "attempt": 2,
+        "winerror": 32,
+        "error": "[WinError 32] The process cannot access the file because it is being used by another process: '\\\\\\\\?\\\\C:\\\\Users\\\\2880441\\\\Documents\\\\AGENTS\\\\JL\\\\BUM\\\\.bum\\\\worktrees\\\\run_fs011_bootstrap_20261018T065158Z_1a3963\\\\node_modules\\\\.pnpm\\\\ts-api-utils@2.5.0_typescript@6.0.3\\\\node_modules'"
+      }
+    ],
+    "remove": {
+      "command": "git worktree remove --force C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_fs011_bootstrap_20261018T065158Z_1a3963",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "branch_delete": {
+      "command": "git branch -D bum-run/run_fs011_bootstrap_20261018T065158Z_1a3963",
+      "returncode": 0,
+      "stdout": "Deleted branch bum-run/run_fs011_bootstrap_20261018T065158Z_1a3963 (was cbc6ddd).\n",
+      "stderr": ""
+    }
+  },
+  "canonical_preserved": true
+}

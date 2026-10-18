@@ -1,0 +1,116 @@
+{
+  "run_id": "run_bum01_20261018T071707Z_e4efce",
+  "bum_head": "8d1b35799e1612e1384325194e52d569bb57d866",
+  "timestamp_utc": "2026-10-18T07:17:07.801260+00:00",
+  "canonical_before": {
+    "head": "20e1108f1ed967b80fa660a553d825f7f18eaa91",
+    "status": "?? FinderShip_FS011_Source_Docs.zip\n?? IDEA.md\n?? README_HERMES_HANDOFF.md\n?? docs/FS-011_HANDOFF.md\n",
+    "node_modules_inode": 562949954242689
+  },
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "exit_code": 0,
+      "output": "v24.22.0\n"
+    },
+    {
+      "argv": [
+        "pnpm",
+        "--version"
+      ],
+      "exit_code": 0,
+      "output": "10.9.0\n"
+    },
+    {
+      "argv": [
+        "pnpm",
+        "exec",
+        "node",
+        "--version"
+      ],
+      "exit_code": 0,
+      "output": "v24.22.0\n"
+    },
+    {
+      "argv": [
+        "pnpm",
+        "run",
+        "typecheck"
+      ],
+      "exit_code": 0,
+      "output": "\n> findership@0.0.0 typecheck C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum01_20261018T071707Z_e4efce\n> pnpm -r typecheck\n\nScope: 2 of 3 workspace projects\npackages/shared typecheck$ tsc --noEmit\npackages/shared typecheck: Done\napps/web typecheck$ next typegen && tsc --noEmit\napps/web typecheck: Generating route types...\napps/web typecheck: \u2713 Types generated successfully\napps/web typecheck: Done\n"
+    },
+    {
+      "argv": [
+        "pnpm",
+        "run",
+        "lint"
+      ],
+      "exit_code": 0,
+      "output": "\n> findership@0.0.0 lint C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum01_20261018T071707Z_e4efce\n> pnpm run lint:tooling && pnpm -r lint\n\n\n> findership@0.0.0 lint:tooling C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum01_20261018T071707Z_e4efce\n> node packages/shared/node_modules/eslint/bin/eslint.js scripts tests --max-warnings 0\n\nScope: 2 of 3 workspace projects\npackages/shared lint$ eslint . --max-warnings 0\npackages/shared lint: Done\napps/web lint$ eslint . --max-warnings 0\napps/web lint: Done\n"
+    }
+  ],
+  "create": {
+    "success": true,
+    "worktree_path": "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum01_20261018T071707Z_e4efce",
+    "branch": "bum-run/run_bum01_20261018T071707Z_e4efce",
+    "base_branch": "fs-011/authentication",
+    "error": null
+  },
+  "dependency_isolation": {
+    "node_modules": {
+      "exists": true,
+      "junction": false,
+      "symlink": false
+    },
+    "apps\\web\\node_modules": {
+      "exists": true,
+      "junction": false,
+      "symlink": false
+    },
+    "packages\\shared\\node_modules": {
+      "exists": true,
+      "junction": false,
+      "symlink": false
+    }
+  },
+  "cleanup": {
+    "worktree_removed": true,
+    "branch_deleted": true,
+    "details": {
+      "registration": {
+        "command": "git worktree list --porcelain -z",
+        "returncode": 0,
+        "stdout": "worktree C:/Users/2880441/Documents/AGENTS/JL/FinderShip\u0000HEAD 20e1108f1ed967b80fa660a553d825f7f18eaa91\u0000branch refs/heads/fs-011/authentication\u0000\u0000",
+        "stderr": ""
+      },
+      "filesystem_attempts": 1,
+      "remove": {
+        "command": "git worktree remove --force C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum01_20261018T071707Z_e4efce",
+        "returncode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "branch_delete": {
+        "command": "git branch -D bum-run/run_bum01_20261018T071707Z_e4efce",
+        "returncode": 0,
+        "stdout": "Deleted branch bum-run/run_bum01_20261018T071707Z_e4efce (was 20e1108).\n",
+        "stderr": ""
+      }
+    }
+  },
+  "post_cleanup": {
+    "directory_absent": true,
+    "registration_absent": true,
+    "branch_absent": true
+  },
+  "canonical_after": {
+    "head": "20e1108f1ed967b80fa660a553d825f7f18eaa91",
+    "status": "?? FinderShip_FS011_Source_Docs.zip\n?? IDEA.md\n?? README_HERMES_HANDOFF.md\n?? docs/FS-011_HANDOFF.md\n",
+    "node_modules_inode": 562949954242689
+  },
+  "canonical_preserved": true
+}

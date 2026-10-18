@@ -20,18 +20,20 @@
 - Early integrated console suite: 115 offline tests passed **before** the latest artifact/contract fixes.
 - Later targeted `orchestrator.test_worktree_bootstrap` + `orchestrator.test_legacy_import_safety`: 30 tests passed.
 - Real isolated pnpm bootstrap, workspace typecheck and lint passed on Node24.22.0/pnpm10.9.0. Root dependencies were not shared and canonical FinderShip state was preserved.
-- Long-path cleanup was improved and removed an older orphan. A fresh parent probe still failed cleanup with Windows sharing violation `WinError 32`; branch/registration were correctly preserved. It is **not resolved** by the 30-test pass.
-- Real residual probe: `run_fs011_bootstrap_20261018T065158Z_1a3963`, under `BUM/.bum/worktrees/`, belonging to the **FinderShip repository's** worktree registry. Inspect that exact registry before cleanup; do not confuse it with BUM's own worktree list.
+- Historical at the saved WIP: a fresh parent probe failed cleanup with Windows sharing violation `WinError 32`; branch/registration were correctly preserved despite the 30-test pass. BUM-01 later removed it with bounded retries; see the completed handoff below.
+- Historical residual probe: `run_fs011_bootstrap_20261018T065158Z_1a3963`, under `BUM/.bum/worktrees/`, belonged to the **FinderShip repository's** worktree registry. BUM-01 verified its path/registration/branch absent. Always inspect the owning registry; do not confuse it with BUM's own worktree list.
 - Independent review identified cross-project artifact contamination, contract reference promotion, and predictable partial Tester batches. Partial fixes/new tests for those are preserved, but final combined results/review are pending.
 - Existing Planner, unchanged identity, returned a proposed contract on a planning-only readiness call with low reasoning effort. This does not prove a full five-stage run works.
 - Legacy capability scripts are now import-safe. Require the import-safety regression before broad discovery; patch all provider/command/Git/filesystem boundaries in the module actually invoked, including legacy resume helpers. Never run manual capability scripts against an unrelated default project.
 
 ## BUM-01 — Windows worktree cleanup and sharing violations
 
-- [ ] Reproduce/inspect the remaining exact managed worktree without altering canonical FinderShip.
-- [ ] Diagnose sharing violations after process completion; use bounded safe cleanup/retry only where justified. Do not kill unrelated processes, traverse junction targets, suppress errors or change global Git/OS settings.
-- [ ] Add regressions for temporary sharing violations and persistent failure; preserve branch/registration until removal actually succeeds.
-- [ ] Verify a real fresh isolated worktree can install, typecheck/lint and be completely removed, with canonical HEAD/status unchanged. Report any residual directory/registration explicitly.
+- [x] Reproduce/inspect the remaining exact managed worktree without altering canonical FinderShip.
+- [x] Diagnose sharing violations after process completion; use bounded safe cleanup/retry only where justified. Do not kill unrelated processes, traverse junction targets, suppress errors or change global Git/OS settings.
+- [x] Add regressions for temporary sharing violations and persistent failure; preserve branch/registration until removal actually succeeds.
+- [x] Verify a real fresh isolated worktree can install, typecheck/lint and be completely removed, with canonical HEAD/status unchanged. Report any residual directory/registration explicitly.
+
+**Completed October 18, 2026:** tested code `8d1b35799e1612e1384325194e52d569bb57d866`; import-safety 3/3 and targeted suite 35/35 passed. Old residual removed on retry attempt 3; final fresh real probe installed/typechecked/linted and was completely removed. Both canonical registries read back clean of probes; FinderShip HEAD/status preserved during verification. Actual external lock owner was not identified. Full evidence, limitations and next-chat prompt: [BUM-01 handoff](BUM-01_HANDOFF.md). BUM-02 onward and auth remain pending; stop here.
 
 **Owned paths:** `orchestrator/worktree_tools.py`, `orchestrator/test_worktree_bootstrap.py`; evidence/docs. Read-only dependencies elsewhere.
 
