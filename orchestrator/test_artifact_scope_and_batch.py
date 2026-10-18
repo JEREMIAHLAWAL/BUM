@@ -21,10 +21,11 @@ class BatchPreflightTests(unittest.TestCase):
         with patch.object(tempfile, "tempdir", str(Path.home() / "AppData/Local/hermes/cache/scratch")):
             fixtures.TesterWriteTests.setUp(self)
 
-    def apply_batch(self, operations):
+    def apply_batch(self, operations, contract=None):
         output = "\n".join(f"```{op}:{path}\n{content}```" for op, path, content in operations)
-        return pipeline.parse_and_apply_agent_file_operations(output, "tester", contract={
-            "file_boundaries": list(dict.fromkeys(path for _, path, _ in operations))})
+        c = contract if contract is not None else {
+            "file_boundaries": list(dict.fromkeys(path for _, path, _ in operations))}
+        return pipeline.parse_and_apply_agent_file_operations(output, "tester", contract=c)
 
     def test_predictable_invalid_later_operation_never_writes_earlier_file(self):
         self.manifest = fixtures.manifest_for(["tests"])
@@ -65,6 +66,37 @@ class BatchPreflightTests(unittest.TestCase):
                               ("delete", "tests/existing.py", "")])
         self.assertFalse((self.root / "tests/first.py").exists())
         self.assertEqual((self.root / "tests/existing.py").read_text(), "unchanged")
+
+    def test_contract_and_manifest_guards_block_batch_before_first_mutation(self):
+        self.manifest = fixtures.manifest_for(["tests"])
+        # Outside manifest root
+        with self.assertRaises(PermissionError):
+            self.apply_batch([("write", "tests/valid.py", "valid"), ("write", "src/auth.py", "bad")])
+        self.assertFalse((self.root / "tests/valid.py").exists())
+
+        # Reference file in contract
+        with self.assertRaises(PermissionError):
+            self.apply_batch([("write", "tests/valid.py", "valid"), ("write", "tests/ref.py", "bad")],
+                             contract={"file_boundaries": ["tests/valid.py", "tests/ref.py"],
+                                       "reference_files": ["tests/ref.py"]})
+        self.assertFalse((self.root / "tests/valid.py").exists())
+
+    def test_delete_file_then_write_child_directory_in_same_batch(self):
+        self.manifest = fixtures.manifest_for(["tests"])
+        (self.root / "tests").mkdir()
+        (self.root / "tests/parent").write_text("old file")
+        result = self.apply_batch([("delete", "tests/parent", ""),
+                                   ("write", "tests/parent/child.py", "child content\n")])
+        self.assertEqual(result["executed_count"], 2)
+        self.assertTrue((self.root / "tests/parent/child.py").is_file())
+        self.assertEqual((self.root / "tests/parent/child.py").read_text(), "child content\n")
+
+    def test_write_child_then_delete_parent_directory_blocked_before_writes(self):
+        self.manifest = fixtures.manifest_for(["tests"])
+        with self.assertRaises(IsADirectoryError):
+            self.apply_batch([("write", "tests/dir/child.py", "content\n"),
+                              ("delete", "tests/dir", "")])
+        self.assertFalse((self.root / "tests").exists())
 
     def test_unpredictable_io_error_propagates_without_claiming_atomic_rollback(self):
         self.manifest = fixtures.manifest_for(["tests"])
