@@ -73,7 +73,8 @@ def main():
         result['checks']['planner_output'] = hashlib.sha256(spec_file.read_bytes()).hexdigest() == probe['planner_output_sha256']
         result['checks']['runtime_versions'] = probe['runtime_versions'] == {'node': 'v24.22.0', 'pnpm': '10.9.0', 'pnpm_exec_node': 'v24.22.0'}
         result['checks']['five_roles'] = set(probe['loaded_roles']) == {'planner', 'frontend', 'backend', 'tester', 'reviewer'}
-        result['checks']['planner_validation'] = probe['planner_validation']['valid'] and bool(probe['planner_contract']['file_boundaries'])
+        result['checks']['planner_validation'] = (probe['planner_validation']['valid']
+            and probe.get('zero_write_authority') is True and probe['planner_contract']['file_boundaries'] == [])
         result['checks']['role_config_preserved'] = hashlib.sha256((ROOT / 'config/agents.yaml').read_bytes()).hexdigest() == probe['config_sha256']
         result['checks']['role_instructions_preserved'] = all(hashlib.sha256((ROOT / probe['loaded_roles'][role]['instructions']).read_bytes()).hexdigest() == digest
                                                             for role, digest in probe['instruction_hashes'].items())

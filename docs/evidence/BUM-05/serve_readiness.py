@@ -26,7 +26,7 @@ class ReadOnlyConsole:
     def __init__(self, app, identity, run_id):
         self.app = app
         self.identity = identity
-        self.paths = {'/', '/api/health', '/api/version', '/api/projects',
+        self.paths = {'/', '/api/health', '/api/version', '/api/projects', '/api/runs',
                       '/api/pipeline/status', '/api/runs/' + run_id}
 
     async def __call__(self, scope, receive, send):
@@ -203,12 +203,13 @@ def main():
             report['planner_output_sha256'] = digest(artifact / 'spec.md')
             if not validation['valid'] or not report['artifact_resolver_matches']:
                 raise RuntimeError('Read-only Planner or scoped artifact validation failed')
-            if not contract or not contract.get('file_boundaries'):
-                raise RuntimeError('Planner supplied no usable file boundaries')
+            if contract.get('file_boundaries'):
+                raise RuntimeError('Read-only readiness probe must not grant implementation writes')
+            report['zero_write_authority'] = True
         finally:
             pipeline._artifact_project.reset(project_token)
             pipeline._artifact_directory.reset(directory_token)
-        report['context_restored'] = (pipeline._artifact_directory.get() is None and pipeline._artifact_project.get() is None)
+            report['context_restored'] = (pipeline._artifact_directory.get() is None and pipeline._artifact_project.get() is None)
         report['execution_status_after'] = execution_manager.get_status()
         if git('rev-parse', 'HEAD') != report['head'] or report['execution_status_after']['running']:
             raise RuntimeError('Loaded HEAD drift or unexpected worker')

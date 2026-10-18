@@ -25,8 +25,8 @@ class LoadedVerifierContracts(unittest.TestCase):
         source = (verifier.ROOT / 'orchestrator/agent_flow/server.py').read_text(encoding='utf-8')
         function = next(n for n in ast.parse(source).body if isinstance(n, ast.AsyncFunctionDef) and n.name == 'get_projects')
         function.decorator_list = []
-        for wrong in (False, True):
-            with self.subTest(wrong_project=wrong), tempfile.TemporaryDirectory(dir=verifier.SCRATCH, prefix='bum05-http-contract-') as folder:
+        for wrong, grant in [(False, False), (True, False), (False, True)]:
+            with self.subTest(wrong_project=wrong, writable_grant=grant), tempfile.TemporaryDirectory(dir=verifier.SCRATCH, prefix='bum05-http-contract-') as folder:
                 base = Path(folder)
                 root = base / 'BUM'
                 artifact = root / '.bum/runs/run_probe/pipeline'
@@ -49,7 +49,8 @@ class LoadedVerifierContracts(unittest.TestCase):
                 report = {'planner_probe_ok': True, 'head': head, 'pid': 123, 'run_id': 'run_probe',
                           'session_identity': 'fixture-session', 'artifact_context': metadata,
                           'planner_output_sha256': digest(artifact / 'spec.md'), 'loaded_roles': roles,
-                          'planner_validation': {'valid': True}, 'planner_contract': {'file_boundaries': ['future.ts']},
+                          'planner_validation': {'valid': True}, 'zero_write_authority': True,
+                          'planner_contract': {'file_boundaries': ['future.ts'] if grant else []},
                           'runtime_versions': {'node': 'v24.22.0', 'pnpm': '10.9.0', 'pnpm_exec_node': 'v24.22.0'},
                           'config_sha256': digest(root / 'config/agents.yaml'), 'instruction_hashes': instructions}
                 probe = base / 'probe.json'
@@ -84,10 +85,11 @@ class LoadedVerifierContracts(unittest.TestCase):
                 with patch.object(verifier, 'ROOT', root), patch.object(verifier.psutil, 'Process', return_value=process), \
                         patch.object(verifier.urllib.request, 'urlopen', side_effect=urlopen), \
                         patch.object(sys, 'argv', ['verify_loaded.py', '--probe-report', str(probe), '--output', str(output), '--expected-head', head]):
-                    self.assertEqual(verifier.main(), 1 if wrong else 0)
+                    self.assertEqual(verifier.main(), 1 if wrong or grant else 0)
                 observed = json.loads(output.read_text(encoding='utf-8'))
                 self.assertEqual(observed['checks']['active_project'], not wrong)
-                self.assertEqual(observed['ok'], not wrong)
+                self.assertEqual(observed['checks']['planner_validation'], not grant)
+                self.assertEqual(observed['ok'], not (wrong or grant))
 
 
 if __name__ == '__main__':
