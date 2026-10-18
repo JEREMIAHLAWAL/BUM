@@ -14,6 +14,7 @@ import sys
 import time
 import uuid
 import re
+import shutil
 
 ROOT = Path(__file__).resolve().parents[3]
 FINDER = ROOT.parent / 'FinderShip'
@@ -102,8 +103,12 @@ def main():
         runtime = scratch / 'fs011-runtime/node-v24.22.0-win-x64'
         os.environ['PATH'] = str(runtime / 'node_modules/.bin') + os.pathsep + str(runtime) + os.pathsep + os.environ.get('PATH', '')
         report['runtime_versions'] = {}
-        for name, argv in [('node', ['node', '--version']), ('pnpm', ['pnpm', '--version']),
-                           ('pnpm_exec_node', ['pnpm', 'exec', 'node', '--version'])]:
+        tools = {name: shutil.which(name) for name in ('node', 'pnpm')}
+        if any(not value or not Path(value).resolve().is_relative_to(runtime.resolve()) for value in tools.values()):
+            raise RuntimeError('Runtime tool resolution escaped approved runtime')
+        report['runtime_executables'] = tools
+        for name, argv in [('node', [tools['node'], '--version']), ('pnpm', [tools['pnpm'], '--version']),
+                           ('pnpm_exec_node', [tools['pnpm'], 'exec', 'node', '--version'])]:
             command = subprocess.run(argv, cwd=FINDER, capture_output=True, text=True, check=True, timeout=20)
             report['runtime_versions'][name] = command.stdout.strip()
         if report['runtime_versions'] != {'node': 'v24.22.0', 'pnpm': '10.9.0', 'pnpm_exec_node': 'v24.22.0'}:

@@ -48,6 +48,31 @@ class ReadinessGuardTests(unittest.TestCase):
             self.assertEqual(report['failure']['class'], 'RuntimeError')
             self.assertNotIn('loaded_roles', report)
 
+    def test_runtime_uses_resolved_windows_command_before_dotenv(self):
+        runtime = SCRATCH / 'fs011-runtime/node-v24.22.0-win-x64'
+        tools = {'node': str(runtime / 'node.exe'), 'pnpm': str(runtime / 'node_modules/.bin/pnpm.cmd')}
+        calls = []
+        def command(argv, **kwargs):
+            calls.append(argv)
+            version = '10.9.0' if argv == [tools['pnpm'], '--version'] else 'v24.22.0'
+            return runner.subprocess.CompletedProcess(argv, 0, version + '\n', '')
+        with tempfile.TemporaryDirectory(dir=SCRATCH, prefix='bum05-runtime-contract-') as folder:
+            output = Path(folder) / 'failed.json'
+            argv = ['serve_readiness.py', '--output', str(output), '--allow-bum-dotenv-and-planner',
+                    '--expected-head', 'a' * 40, '--preservation-baseline', str(Path(folder) / 'missing.json')]
+            with patch.object(sys, 'argv', argv), patch.object(runner, 'git', side_effect=['a' * 40, '', '']), \
+                    patch.object(runner.shutil, 'which', side_effect=lambda name: tools[name]), \
+                    patch.object(runner.subprocess, 'run', side_effect=command), \
+                    patch('dotenv.load_dotenv') as dotenv:
+                self.assertEqual(runner.main(), 1)
+                dotenv.assert_not_called()
+            self.assertEqual(calls, [[tools['node'], '--version'], [tools['pnpm'], '--version'],
+                                     [tools['pnpm'], 'exec', 'node', '--version']])
+            report = json.loads(output.read_text(encoding='utf-8'))
+            self.assertEqual(report['runtime_executables'], tools)
+            self.assertEqual(report['runtime_versions'], {'node': 'v24.22.0', 'pnpm': '10.9.0', 'pnpm_exec_node': 'v24.22.0'})
+            self.assertFalse(report['ready'])
+
 
 class ReadOnlyBoundaryTests(unittest.IsolatedAsyncioTestCase):
     async def test_mutations_and_sensitive_gets_never_reach_app(self):
