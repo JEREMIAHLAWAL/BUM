@@ -16,6 +16,16 @@ from orchestrator.providers import (
 
 
 class TestProviderTimeoutAndErrors(unittest.TestCase):
+    def setUp(self):
+        self.env_patcher = patch.dict("os.environ", {
+            "OPENROUTER_API_KEY": "mock-openrouter-key",
+            "ANTHROPIC_API_KEY": "mock-anthropic-key",
+        })
+        self.env_patcher.start()
+
+    def tearDown(self):
+        self.env_patcher.stop()
+
     def test_default_timeout_configuration(self):
         self.assertEqual(get_provider_timeout(), DEFAULT_PROVIDER_TIMEOUT_SECONDS)
 

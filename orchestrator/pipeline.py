@@ -29,6 +29,7 @@ from orchestrator.repo_tools import (
     set_run_worktree_override,
     resolve_repo_root,
 )
+from orchestrator import worktree_tools
 from orchestrator.worktree_tools import (
     create_run_worktree,
     discard_run_worktree,
@@ -731,16 +732,39 @@ def run_pipeline(
         # rather than silently running against an undefined location.
         raise RuntimeError(f"Cannot resolve real repo root before creating run worktree: {exc}")
 
+    real_repo_root = Path(real_repo_root).resolve()
+    run_directory = AGENT_PROJECT_ROOT / ".bum" / "runs" / effective_run_id
+    artifact_dir = run_directory / "pipeline"
+    worktree_path = worktree_tools.worktree_root_dir(real_repo_root) / effective_run_id
+    # create_run_worktree tears down an existing same-ID tree (and its branch),
+    # including on add failure. Refuse ownership BEFORE that helper or cleanup.
+    for path in (run_directory, worktree_path):
+        if (path.exists() or path.is_symlink()
+                or (hasattr(path, "is_junction") and path.is_junction())):
+            raise FileExistsError(f"Run ID already owns retained state: {path}")
+    branch_ref = "refs/heads/" + worktree_tools.branch_name(effective_run_id)
+    registration = worktree_tools._run_git(["worktree", "list", "--porcelain", "-z"], cwd=real_repo_root)
+    if registration.get("returncode") != 0:
+        raise RuntimeError("Cannot verify existing run worktree ownership")
+    for field in registration.get("stdout", "").split("\0"):
+        if (field == "branch " + branch_ref
+                or (field.startswith("worktree ") and Path(field[9:]).resolve() == worktree_path.resolve())):
+            raise FileExistsError(f"Run ID already owns a registered worktree: {effective_run_id}")
+    branch = worktree_tools._run_git(["show-ref", "--verify", "--quiet", branch_ref], cwd=real_repo_root)
+    if branch.get("returncode") == 0:
+        raise FileExistsError(f"Run ID already owns branch: {branch_ref}")
+    if branch.get("returncode") != 1:
+        raise RuntimeError("Cannot verify existing run branch ownership")
+    # Reserve atomically before create: a duplicate caller must never enter
+    # the teardown finally block for a run it did not create.
+    run_directory.mkdir(parents=True, exist_ok=False)
+    artifact_dir.mkdir(exist_ok=False)
     wt_result = create_run_worktree(effective_run_id, real_repo_root)
     if not wt_result.get("success"):
         raise RuntimeError(f"Failed to create isolated run worktree: {wt_result.get('error')}")
 
     try:
-        real_repo_root = Path(real_repo_root).resolve()
-        run_directory = (AGENT_PROJECT_ROOT / ".bum" / "runs" / effective_run_id).resolve()
-        artifact_dir = run_directory / "pipeline"
         # A retry is lineage only: never import/overwrite an older run's artifacts.
-        artifact_dir.mkdir(parents=True, exist_ok=False)
         metadata = {
             "schema_version": 1,
             "run_id": effective_run_id,

@@ -86,11 +86,13 @@
 
 Depends on BUM-01 through BUM-04; do not treat earlier green subsets as this gate.
 
-- [ ] Run import-safety gate, then the full offline console suite on an exact committed head. Record actual test counts/failures.
-- [ ] Obtain independent review of the combined exact diff and fix only blocking findings through bounded follow-up tasks.
-- [ ] Run a real isolated FinderShip preparation smoke, with verified Node24/pnpm10.9, frozen dependencies, actual checks and complete cleanup. Empty auth suites are expected to fail; do not hide them with an empty-suite success flag.
-- [ ] Restart the same existing console and verify loaded revision, active FinderShip project, all five configured identities, artifact location and safe planning/readiness behavior. Do not start auth automatically.
-- [ ] Push BUM code/test/review evidence and a FinderShip readiness handoff. Mark prerequisites ready only when verified.
+- [ ] Run import-safety gate, then the audited full offline console suite on an exact committed head. Record actual test counts/failures, runner identity, denied attempts, and fail-closed probes.
+- [ ] Obtain independent review of the combined exact diff with base/head, findings, and disposition; auxiliary review is not external five-role execution.
+- [ ] Run a real isolated FinderShip preparation smoke, with verified Node24/pnpm10.9, frozen dependencies, actual checks and complete cleanup of every owned attempt.
+- [ ] Verify loaded revision, active FinderShip project, all five configured identities, artifact location and safe planning/readiness behavior.
+- [ ] Publish BUM code/test/review evidence and a FinderShip readiness handoff only after all prerequisites pass.
+
+**Reopened October 18, 2026 — BLOCKED:** The prior completion claims and checked boxes were rejected by independent review. The historical 184-test result was unaudited and not exact-head proof; the earlier independent-signoff claim has no supporting artifact. Loaded-console readiness was not established, and two earlier owned smoke leftovers remain pending authorized cleanup. See `C:/Users/2880441/AppData/Local/hermes/cache/scratch/BUM-04-05_INDEPENDENT_REVIEW.md`. BUM-04 remains independently passed for its bounded scope. BUM-05 remediation is in progress; no FS-011 launch is authorized by this document. Historical raw results remain retained, not accepted.
 
 **Kickoff:**
 > Work only on BUM-05 from docs/FS011_CONSOLE_TODO.md after its four prerequisites are verified. Consolidate the existing console fixes, run exact-head regression and real isolated smoke/cleanup, obtain independent review, and publish readiness. Do not implement FS-011 in this chat; finish with its kickoff handoff.

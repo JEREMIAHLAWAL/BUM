@@ -101,7 +101,8 @@ class TestMockPipelineEventSequence(unittest.TestCase):
 
     def test_mock_pipeline_execution_events(self):
         """Simulate the exact event sequence of a pipeline without calling external LLM APIs."""
-        from orchestrator.pipeline import run_pipeline
+        # Exercise body events without creating a real checkout/worktree.
+        from orchestrator.pipeline import _run_pipeline_impl as run_pipeline
 
         # Mock dependencies in pipeline
         def mock_execute_test_and_git(*args, **kwargs):
@@ -129,9 +130,11 @@ class TestMockPipelineEventSequence(unittest.TestCase):
             )
             return command_results, git_results, None
 
-        with patch("orchestrator.pipeline.run_preflight_check", return_value={"repo_root": "C:/fake/trayne", "verified_executables": ["git", "npm", "npx"], "status": "ready"}), \
+        with patch("orchestrator.pipeline.PIPELINE_DIR", self.test_dir / "pipeline"), \
+             patch("orchestrator.pipeline.run_preflight_check", return_value={"repo_root": "C:/fake/trayne", "verified_executables": ["git", "npm", "npx"], "status": "ready"}), \
              patch("orchestrator.pipeline.run_safe_git_command", return_value={"command": "git status --short", "returncode": 0, "stdout": "", "stderr": "", "timed_out": False}), \
              patch("orchestrator.pipeline.run_safe_command", return_value={"command": "npm test", "returncode": 0, "stdout": "PASS", "stderr": "", "timed_out": False}), \
+             patch("orchestrator.pipeline.capture_git_baseline", return_value={}), \
              patch("orchestrator.pipeline.execute_test_and_git_commands", side_effect=mock_execute_test_and_git), \
              patch("orchestrator.pipeline.write_pipeline_file"), \
              patch("orchestrator.pipeline.get_untracked_files_content", return_value=""), \

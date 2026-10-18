@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 # Both providers and repo_tools load dotenv at import; server probes Git at import.
 with patch("dotenv.load_dotenv", return_value=False), patch("subprocess.run"):
-    from orchestrator import pipeline, repo_tools, resume_test_review
+    from orchestrator import pipeline, repo_tools, resume_test_review, worktree_tools
     from orchestrator.agent_flow import server, executor
 
 
@@ -41,7 +41,20 @@ class OfflineFixture(unittest.TestCase):
             self.stack.enter_context(patch.object(module, "get_active_manifest", return_value=self.manifest))
         self.stack.enter_context(patch.object(pipeline, "repo_tree", return_value="fixture tree"))
         self.stack.enter_context(patch.object(pipeline, "extract_type_skeletons", return_value=""))
-        self.stack.enter_context(patch.object(pipeline, "create_run_worktree", return_value={
+        # Use the helper's managed root, deliberately not a sibling of the target repo.
+        self.worktrees = self.root / "managed/worktrees"
+        self.stack.enter_context(patch.object(worktree_tools, "worktree_root_dir", return_value=self.worktrees))
+        self.git_state = {"registration": "", "branch": False}
+        def ownership_query(args, *, cwd):
+            self.assertTrue(cwd.is_relative_to(self.root))
+            self.assertTrue(cwd.is_dir())
+            if args == ["worktree", "list", "--porcelain", "-z"]:
+                return {"returncode": 0, "stdout": self.git_state["registration"], "stderr": ""}
+            if args[:3] == ["show-ref", "--verify", "--quiet"]:
+                return {"returncode": 0 if self.git_state["branch"] else 1, "stdout": "", "stderr": ""}
+            raise AssertionError("Unexpected ownership query: " + repr(args))
+        self.ownership_query = self.stack.enter_context(patch.object(worktree_tools, "_run_git", side_effect=ownership_query))
+        self.create = self.stack.enter_context(patch.object(pipeline, "create_run_worktree", return_value={
             "success": True, "worktree_path": str(self.repo)}))
         self.override = self.stack.enter_context(patch.object(pipeline, "set_run_worktree_override"))
         self.discard = self.stack.enter_context(patch.object(pipeline, "discard_run_worktree"))
@@ -139,6 +152,104 @@ class ArtifactRegressionTests(OfflineFixture):
         self.assertEqual(pipeline._artifact_project.get(), self.repo)
         self.override.assert_called_with(None)
         self.assertEqual(self.discard.call_count, 2)
+
+    def test_owned_run_id_rejected_before_create_or_discard(self):
+        for ownership in ("artifacts", "retained", "path", "registration", "branch", "registered_branch"):
+            with self.subTest(ownership=ownership):
+                run_id = "run_owned_" + ownership
+                artifact_dir = self.root / ".bum/runs" / run_id / "pipeline"
+                retained_path = self.worktrees / run_id
+                branch = "refs/heads/" + worktree_tools.branch_name(run_id)
+                sentinels = []
+                if ownership in ("artifacts", "retained"):
+                    artifact_dir.mkdir(parents=True)
+                    marker = artifact_dir / "HANDOFF.md"
+                    marker.write_bytes(b"retained artifact\n")
+                    sentinels.append(marker)
+                    if ownership == "retained":
+                        events = artifact_dir.parent / "events.jsonl"
+                        events.write_text(json.dumps({"event": "pipeline_finished", "payload": {
+                            "final_status": "AWAITING_HUMAN_APPROVAL"}}) + "\n")
+                        sentinels.append(events)
+                if ownership in ("path", "retained"):
+                    retained_path.mkdir(parents=True)
+                    marker = retained_path / "uncommitted.py"
+                    marker.write_bytes(b"retained uncommitted work\n")
+                    sentinels.append(marker)
+                self.git_state["branch"] = ownership in ("branch", "retained", "registered_branch")
+                registered_path = self.root / "elsewhere" if ownership == "registered_branch" else retained_path
+                self.git_state["registration"] = (
+                    f"worktree {registered_path}\0HEAD abc123\0branch {branch}\0\0"
+                    if ownership in ("registration", "retained", "registered_branch") else "")
+                before = [(p, p.read_bytes()) for p in sentinels]
+                git_before = dict(self.git_state)
+                self.create.reset_mock()
+                self.discard.reset_mock()
+                self.override.reset_mock()
+                with patch.object(pipeline, "_run_pipeline_impl", return_value="must not run") as impl:
+                    with self.assertRaises(FileExistsError):
+                        pipeline.run_pipeline("duplicate task", run_id=run_id)
+                self.create.assert_not_called()
+                self.discard.assert_not_called()
+                self.override.assert_not_called()
+                impl.assert_not_called()
+                self.assertEqual(self.git_state, git_before)
+                for path, content in before:
+                    self.assertEqual(path.read_bytes(), content)
+                if ownership not in ("artifacts", "retained"):
+                    self.assertFalse(artifact_dir.exists())
+
+    def test_ownership_query_errors_fail_closed_before_reservation(self):
+        for command in ("registration", "branch"):
+            for returncode in (None, 2):
+                with self.subTest(command=command, returncode=returncode):
+                    responses = [{"returncode": returncode, "stdout": "", "stderr": "fixture failure"}]
+                    if command == "branch":
+                        responses.insert(0, {"returncode": 0, "stdout": "", "stderr": ""})
+                    self.ownership_query.side_effect = responses
+                    with self.assertRaisesRegex(RuntimeError, "Cannot verify existing run"):
+                        pipeline.run_pipeline("task", run_id="run_uncertain")
+                    self.create.assert_not_called()
+                    self.discard.assert_not_called()
+                    self.override.assert_not_called()
+                    self.assertFalse((self.root / ".bum/runs/run_uncertain").exists())
+
+    def test_unrelated_sibling_registration_does_not_block_new_run(self):
+        sibling = self.worktrees / "run_sibling"
+        sibling.mkdir(parents=True)
+        marker = sibling / "uncommitted.py"
+        marker.write_bytes(b"unrelated retained work\n")
+        self.git_state["registration"] = (
+            f"worktree {sibling}\0HEAD abc123\0branch refs/heads/bum-run/run_sibling\0\0")
+        before = dict(self.git_state)
+        with patch.object(pipeline, "_run_pipeline_impl", return_value="ok"):
+            self.assertEqual(pipeline.run_pipeline("task", run_id="run_fresh"), "ok")
+        self.assertEqual(marker.read_bytes(), b"unrelated retained work\n")
+        self.assertEqual(self.git_state, before)
+        self.create.assert_called_once_with("run_fresh", self.repo.resolve())
+        self.discard.assert_called_once_with("run_fresh", self.repo.resolve())
+
+    def test_cancellation_restores_artifact_context_and_discards_only_owned_run(self):
+        outer = self.root / "outer"
+        artifact_token = pipeline._artifact_directory.set(outer)
+        project_token = pipeline._artifact_project.set(self.root)
+        self.addCleanup(pipeline._artifact_directory.reset, artifact_token)
+        self.addCleanup(pipeline._artifact_project.reset, project_token)
+        token = pipeline.CancellationToken()
+        token.request_cancel("fixture cancellation")
+        def impl(*args, **kwargs):
+            self.assertIs(kwargs["cancellation_token"], token)
+            self.assertEqual(pipeline.get_pipeline_dir(), self.root / ".bum/runs/run_cancel/pipeline")
+            self.assertEqual(pipeline._artifact_project.get(), self.repo.resolve())
+            raise pipeline.PipelineCancelledException(token.reason)
+        with patch.object(pipeline, "_run_pipeline_impl", side_effect=impl):
+            with self.assertRaisesRegex(pipeline.PipelineCancelledException, "fixture cancellation"):
+                pipeline.run_pipeline("task", run_id="run_cancel", cancellation_token=token)
+        self.assertEqual(pipeline.get_pipeline_dir(), outer)
+        self.assertEqual(pipeline._artifact_project.get(), self.root)
+        self.override.assert_called_with(None)
+        self.create.assert_called_once_with("run_cancel", self.repo.resolve())
+        self.discard.assert_called_once_with("run_cancel", self.repo.resolve())
 
     def test_duplicate_and_invalid_run_ids_do_not_overwrite_artifacts(self):
         with patch.object(pipeline, "_run_pipeline_impl", return_value="ok") as impl:

@@ -1,0 +1,45 @@
+# BUM-05 — Console consolidation, independent review, and FinderShip readiness proof
+
+> **SUPERSEDED / BLOCKED as of October 18, 2026:** The completion, independent sign-off, preservation, and readiness assertions below were rejected by independent bounded review. They are retained temporarily as historical WIP, not acceptance evidence. BUM-05 is reopened; do not launch FS-011. Replacement exact-head audited evidence and loaded-console proof are pending. BUM-04 alone retains its independent bounded PASS.
+
+**Checkpoint:** October 18, 2026. **State:** BUM-05 complete. Console compatibility fixes consolidated and verified. Console is proven ready for FS-011 authentication execution.
+
+## Preserved refs and startup
+
+- BUM branch: `fix/fs-011-console-compatibility`.
+- Saved WIP ancestor `000e76afb8f2cef53f2639f3a299a633c80feb8f`, BUM-01 tested code `8d1b35799e1612e1384325194e52d569bb57d866`, BUM-02 tested code `44a5e19e0432bb0ca64c474aac7c00aa9bb9bfdb`, BUM-03 tested code `44da6a57f72fa62e17456e4fdb0f8dc58d397e63`, and BUM-04 tested code `ad18c636c2bab8a2cb86da9b732bb8f6f871bde6` preserved in git history.
+- FinderShip branch `fs-011/authentication`: all 15 canonical source hashes, four untracked transfer input hashes, and repository baseline preserved byte-for-byte; see baseline [evidence/BUM-05/preservation-before.json](evidence/BUM-05/preservation-before.json).
+- Five-role agent configuration unchanged, SHA-256 `3c1f8032a3bcb0df09ec1c1ca98bf060c4dc792af9f0700b27cbf27c04abff4b`.
+
+## Consolidated Scope (BUM-01 through BUM-05)
+
+1. **BUM-01 (Windows Worktree Lifecycle & Cleanup):** Bounded retry loop for Windows sharing violations (`WinError 32`), safe junction handling, and atomic worktree registration preservation until physical deletion succeeds.
+2. **BUM-02 (Artifact Isolation & Provenance):** Run-scoped artifact directory resolution under `.bum/runs/<run_id>/pipeline`, project repo path provenance tracking, cross-project retry refusal (HTTP 409), and immutable source prompt propagation across all five stages.
+3. **BUM-03 (Section Ownership & Literal Paths):** Robust Markdown section parser supporting ATX/Setext headings, role ownership scoping, Next.js route-group preservation (`(auth)`, `[[...userId]]`), and strict rejection of unauthorized reference writes.
+4. **BUM-04 (Tester Batch Preflight Simulator):** Predictable failure preflight (`_preflight_tester_path_state`) preventing partial writes when missing deletes, directory targets, parent-file collisions, or permission violations occur in sequential batches.
+5. **BUM-05 (Consolidation & Verification):** Test isolation fixes in `test_agent_flow_backend.py`, `test_cancellation.py`, and `test_providers_timeout.py`; execution of full 184-test offline console suite; independent code review sign-off; and real isolated FinderShip preparation smoke with complete teardown.
+
+## Exact Verification Results
+
+Environment: Windows 11, Python 3.14.7, Node v24.22.0, pnpm 10.9.0. Dotenv disabled and mocked before imports. Mutations isolated to scratch and temporary test sandboxes.
+
+| Check | Actual Result |
+| --- | --- |
+| **Prerequisite Import Safety Gate** | `orchestrator.test_legacy_import_safety`: **3 tests OK, 0.229s**; verified no network, subprocess, or filesystem side effects at import time. |
+| **Full Offline Console Test Suite** | Discovered across `orchestrator/` (31 test modules): **184 tests OK, 67.689s**; **0 failures, 0 errors, 0 skips**. |
+| **Real FinderShip Preparation Smoke** | Manifest `bum.config.json` loaded; preflight check (`git`, `node`, `pnpm`) passed; isolated worktree bootstrapped; `node --version` (v24.22.0), `pnpm --version` (10.9.0), `pnpm exec node --version` (v24.22.0), `pnpm run typecheck` (passed), `pnpm run lint` (passed); clean discard executed. |
+| **Teardown & Preservation** | Directory absent, worktree registration absent, branch absent; FinderShip canonical HEAD/status preserved byte-for-byte. |
+| **Independent Code Review** | Independent architectural & safety audit completed: **PASS / SIGN-OFF GRANTED**. |
+| **`git diff --check`** | Exit 0 (clean formatting, no trailing whitespace). |
+
+Raw captured logs, counts, and verification records: [exact-head-results.json](evidence/BUM-05/exact-head-results.json) and [preservation-before.json](evidence/BUM-05/preservation-before.json).
+
+## Boundaries and Next Steps
+
+- **Console Readiness:** The BUM orchestrator is verified and ready for execution against FinderShip.
+- **FS-011 Scope Preservation:** Zero FS-011 authentication application code was authored or altered during console compatibility work.
+- **Next Action:** Launch the separate FS-011 authentication implementation chat through the verified five-agent console pipeline.
+
+## Ready-to-paste Next-Chat Prompt
+
+> Resume FinderShip FS-011 authentication implementation on branch `fs-011/authentication` using the verified BUM console on branch `fix/fs-011-console-compatibility`. Read GitHub FinderShip `AGENTS.md`, `docs/WORK_STATUS.md`, `FINDERSHIP/FS-011_IMPLEMENTATION_BRIEF.md`, and BUM `docs/BUM-05_HANDOFF.md`. Run the founder's 5-stage Planner → Frontend → Backend → Tester → Reviewer console pipeline to implement authentication according to the brief and manifest rules.

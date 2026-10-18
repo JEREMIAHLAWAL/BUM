@@ -1,0 +1,173 @@
+{
+  "timestamp_utc": "2026-10-18T16:42:48Z",
+  "python_version": "3.14.7 (main, Sep  1 2026, 14:17:30) [MSC v.1944 64 bit (AMD64)]",
+  "scratch_directory": "C:\\Users\\2880441\\AppData\\Local\\hermes\\cache\\scratch",
+  "bum_root": "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM",
+  "finder_root": "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\FinderShip",
+  "stages": {
+    "import_safety_gate": {
+      "tests_run": 3,
+      "was_successful": true,
+      "failures": 0,
+      "errors": 0,
+      "duration_sec": 0.2293,
+      "log": "test_legacy_imports_have_no_provider_command_git_or_file_side_effects (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_imports_have_no_provider_command_git_or_file_side_effects) ... ok\ntest_legacy_scripts_have_explicit_manual_entrypoints (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_scripts_have_explicit_manual_entrypoints) ... ok\ntest_reviewer_git_policy_probe_never_reaches_repository_or_subprocess (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_reviewer_git_policy_probe_never_reaches_repository_or_subprocess) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.065s\n\nOK\n"
+    },
+    "full_offline_suite": {
+      "tests_run": 184,
+      "was_successful": true,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duration_sec": 67.6886,
+      "failure_details": [],
+      "error_details": [],
+      "log": "anch_even_after_files_removed (test_worktree_bootstrap.WorktreeBootstrapTests.test_registration_remove_failure_preserves_branch_even_after_files_removed) ... ok\ntest_retry_creation_reports_existing_cleanup_failure (test_worktree_bootstrap.WorktreeBootstrapTests.test_retry_creation_reports_existing_cleanup_failure) ... ok\ntest_run_id_cannot_have_shell_metacharacters_or_trailing_newline (test_worktree_bootstrap.WorktreeBootstrapTests.test_run_id_cannot_have_shell_metacharacters_or_trailing_newline) ... ok\ntest_shared_nested_node_modules_junction_is_rejected_before_install (test_worktree_bootstrap.WorktreeBootstrapTests.test_shared_nested_node_modules_junction_is_rejected_before_install) ... ok\ntest_snapshot_overrides_stale_tracked_config_and_corruption_fails_closed (test_worktree_bootstrap.WorktreeBootstrapTests.test_snapshot_overrides_stale_tracked_config_and_corruption_fails_closed) ... ok\ntest_transient_sharing_violation_retries_then_removes_actual_tree (test_worktree_bootstrap.WorktreeBootstrapTests.test_transient_sharing_violation_retries_then_removes_actual_tree) ... ok\ntest_unknown_bootstrap_command_fails_before_any_git_changes (test_worktree_bootstrap.WorktreeBootstrapTests.test_unknown_bootstrap_command_fails_before_any_git_changes) ... ok\ntest_unrelated_filesystem_errors_are_not_retried (test_worktree_bootstrap.WorktreeBootstrapTests.test_unrelated_filesystem_errors_are_not_retried) ... ok\ntest_workspace_globs_cannot_escape_isolation (test_worktree_bootstrap.WorktreeBootstrapTests.test_workspace_globs_cannot_escape_isolation) ... ok\ntest_wrong_node_engine_fails_before_pnpm_and_cleans_up (test_worktree_bootstrap.WorktreeBootstrapTests.test_wrong_node_engine_fails_before_pnpm_and_cleans_up) ... ok\ntest_wrong_pnpm_pin_fails_before_install_and_cleans_up (test_worktree_bootstrap.WorktreeBootstrapTests.test_wrong_pnpm_pin_fails_before_install_and_cleans_up) ... ok\n\n----------------------------------------------------------------------\nRan 184 tests in 62.108s\n\nOK\n"
+    },
+    "findership_prep_smoke": {
+      "run_id": "run_bum05_smoke_20261018T164356Z_accdf1",
+      "manifest_file": "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\FinderShip\\bum.config.json",
+      "manifest_summary": {
+        "name": "FinderShip FS-011",
+        "project_type": "nextjs",
+        "verification": {
+          "typecheck_cmd": "pnpm run typecheck",
+          "test_cmd": "pnpm run security:audit",
+          "lint_cmd": "pnpm check",
+          "build_cmd": "pnpm run security:files"
+        },
+        "allowed_write_roots": [
+          "apps/web/src/server/auth",
+          "apps/web/src/proxy.ts",
+          "apps/web/src/app/auth",
+          "apps/web/src/app/(auth)",
+          "apps/web/src/app/(protected)",
+          "apps/web/src/components/auth",
+          "apps/web/test",
+          "pipeline"
+        ]
+      },
+      "preflight_status": "ready",
+      "preflight_executables": [
+        "git",
+        "node",
+        "pnpm"
+      ],
+      "worktree_create": {
+        "success": true,
+        "worktree_path": "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum05_smoke_20261018T164356Z_accdf1",
+        "branch": "bum-run/run_bum05_smoke_20261018T164356Z_accdf1",
+        "base_branch": "fs-011/authentication",
+        "error": null
+      },
+      "dependency_isolation": {
+        "node_modules": {
+          "exists": true,
+          "junction": false,
+          "symlink": false
+        },
+        "apps\\web\\node_modules": {
+          "exists": true,
+          "junction": false,
+          "symlink": false
+        },
+        "packages\\shared\\node_modules": {
+          "exists": true,
+          "junction": false,
+          "symlink": false
+        }
+      },
+      "commands_executed": [
+        {
+          "command": [
+            "node",
+            "--version"
+          ],
+          "exit_code": 0,
+          "stdout": "v24.22.0\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "pnpm",
+            "--version"
+          ],
+          "exit_code": 0,
+          "stdout": "10.9.0\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "pnpm",
+            "exec",
+            "node",
+            "--version"
+          ],
+          "exit_code": 0,
+          "stdout": "v24.22.0\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "pnpm",
+            "run",
+            "typecheck"
+          ],
+          "exit_code": 0,
+          "stdout": "\n> findership@0.0.0 typecheck C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum05_smoke_20261018T164356Z_accdf1\n> pnpm -r typecheck\n\nScope: 2 of 3 workspace projects\npackages/shared typecheck$ tsc --noEmit\npackages/shared typecheck: Done\napps/web typecheck$ next typegen && tsc --noEmit\napps/web typecheck: Generating route types...\napps/web typecheck: \u2713 Types generated successfully\napps/web typecheck: Done\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "pnpm",
+            "run",
+            "lint"
+          ],
+          "exit_code": 0,
+          "stdout": "ts\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum05_smoke_20261018T164356Z_accdf1\n> pnpm run lint:tooling && pnpm -r lint\n\n\n> findership@0.0.0 lint:tooling C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum05_smoke_20261018T164356Z_accdf1\n> node packages/shared/node_modules/eslint/bin/eslint.js scripts tests --max-warnings 0\n\nScope: 2 of 3 workspace projects\npackages/shared lint$ eslint . --max-warnings 0\npackages/shared lint: Done\napps/web lint$ eslint . --max-warnings 0\napps/web lint: Done\n",
+          "stderr": ""
+        }
+      ],
+      "worktree_cleanup": {
+        "worktree_removed": true,
+        "branch_deleted": true,
+        "details": {
+          "registration": {
+            "command": "git worktree list --porcelain -z",
+            "returncode": 0,
+            "stdout": "worktree C:/Users/2880441/Documents/AGENTS/JL/FinderShip\u0000HEAD 18f0890b04a1f753cc1f2a036c46a5b48a790278\u0000branch refs/heads/fs-011/authentication\u0000\u0000worktree C:/Users/2880441/Documents/AGENTS/JL/BUM/.bum/worktrees/run_bum05_smoke_20261018T163734Z_ac3245\u0000HEAD 18f0890b04a1f753cc1f2a036c46a5b48a790278\u0000branch refs/heads/bum-run/run_bum05_smoke_20261018T163734Z_ac3245\u0000\u0000worktree C:/Users/2880441/Documents/AGENTS/JL/BUM/.bum/worktrees/run_bum05_smoke_20261018T164052Z_e5b0a4\u0000HEAD 18f0890b04a1f753cc1f2a036c46a5b48a790278\u0000branch refs/heads/bum-run/run_bum05_smoke_20261018T164052Z_e5b0a4\u0000\u0000",
+            "stderr": ""
+          },
+          "filesystem_attempts": 1,
+          "remove": {
+            "command": "git worktree remove --force C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM\\.bum\\worktrees\\run_bum05_smoke_20261018T164356Z_accdf1",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          "branch_delete": {
+            "command": "git branch -D bum-run/run_bum05_smoke_20261018T164356Z_accdf1",
+            "returncode": 0,
+            "stdout": "Deleted branch bum-run/run_bum05_smoke_20261018T164356Z_accdf1 (was 18f0890).\n",
+            "stderr": ""
+          }
+        }
+      },
+      "post_cleanup": {
+        "directory_absent": true,
+        "registration_absent": true,
+        "branch_absent": true
+      },
+      "canonical_preserved": true,
+      "duration_sec": 330.1207
+    }
+  },
+  "summary": {
+    "all_stages_passed": true,
+    "total_offline_tests_run": 184,
+    "total_failures": 0,
+    "total_errors": 0,
+    "total_skipped": 0,
+    "findership_ready_for_fs011": true
+  }
+}

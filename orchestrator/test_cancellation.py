@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 from orchestrator.cancellation import CancellationToken, PipelineCancelledException
@@ -6,6 +8,13 @@ from orchestrator.events import EventLogger, set_current_logger
 
 
 class TestCancellationSystem(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.fake_root = Path(self.temp_dir.name)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
     def test_cancellation_token_lifecycle(self):
         token = CancellationToken(run_id="run_test_cancel_1")
         self.assertFalse(token.is_cancelled())
@@ -32,7 +41,11 @@ class TestCancellationSystem(unittest.TestCase):
 
         logger = MockLogger()
 
-        with patch("orchestrator.pipeline.EventLogger", return_value=logger), \
+        # This is a pipeline-body checkpoint test, not a worktree lifecycle test.
+        from orchestrator.pipeline import _run_pipeline_impl as run_pipeline
+        with patch("orchestrator.pipeline.PIPELINE_DIR", self.fake_root / "pipeline"), \
+             patch("orchestrator.pipeline.AGENT_PROJECT_ROOT", self.fake_root), \
+             patch("orchestrator.pipeline.EventLogger", return_value=logger), \
              patch("orchestrator.pipeline.run_preflight_check", return_value={"repo_root": "C:/fake", "verified_executables": ["git"], "status": "ready"}), \
              patch("orchestrator.pipeline.run_safe_git_command", return_value={"returncode": 0, "stdout": "", "stderr": ""}), \
              patch("orchestrator.pipeline.run_safe_command", return_value={"returncode": 0, "stdout": "", "stderr": ""}), \

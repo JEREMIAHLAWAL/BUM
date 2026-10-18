@@ -25,16 +25,33 @@ from orchestrator.agent_flow.repository import (
 from orchestrator.agent_flow.reducer import reduce_run_state
 from orchestrator.agent_flow.executor import execution_manager
 from orchestrator.agent_flow.server import app
+from orchestrator.repo_tools import resolve_repo_root
 
 
 class TestAgentFlowBackend(unittest.TestCase):
     def setUp(self):
-        self.test_dir = Path(tempfile.mkdtemp())
+        scratch = Path.home() / "AppData/Local/hermes/cache/scratch"
+        scratch.mkdir(parents=True, exist_ok=True)
+        self.test_dir = Path(tempfile.mkdtemp(dir=scratch, prefix="bum05-api-"))
+        self.project_dir = self.test_dir / "project"
+        self.project_dir.mkdir()
+        # Historical-run provenance must never resolve a user's selected/default repo.
+        self.project_patch = patch("orchestrator.repo_tools._ACTIVE_PROJECT_PATH", self.project_dir)
+        self.project_patch.start()
+        self.addCleanup(self.project_patch.stop)
+        self.override_patch = patch("orchestrator.repo_tools._RUN_WORKTREE_OVERRIDE", None)
+        self.override_patch.start()
+        self.addCleanup(self.override_patch.stop)
         self.orig_repo_runs_dir = repo_module.RUNS_DIR
         self.orig_events_runs_dir = events_module.RUNS_DIR
         repo_module.RUNS_DIR = self.test_dir
         events_module.RUNS_DIR = self.test_dir
         self.client = TestClient(app)
+        # API fixtures use deterministic version metadata; never inspect the checkout.
+        version = patch("orchestrator.agent_flow.server.get_version_info", return_value={
+            "boot_commit": "offline-fixture", "current_commit_on_disk": "offline-fixture", "is_stale": False})
+        version.start()
+        self.addCleanup(version.stop)
         # Ensure execution manager is clean
         with execution_manager._lock:
             execution_manager._running = False
@@ -409,15 +426,16 @@ class TestAgentFlowBackend(unittest.TestCase):
         import time
         from orchestrator.agent_flow.executor import execution_manager
 
+        active_root, _ = resolve_repo_root()
         # 1. Create a historical failed run and a historical approved run
         failed_events = [
-            {"run_id": "run_hist_failed", "timestamp": 100.0, "event": "pipeline_started", "payload": {"task": "Build workout timer"}},
+            {"run_id": "run_hist_failed", "timestamp": 100.0, "event": "pipeline_started", "payload": {"task": "Build workout timer", "project_repo_path": str(active_root)}},
             {"run_id": "run_hist_failed", "timestamp": 110.0, "event": "pipeline_finished", "payload": {"final_status": "FAILED", "reason": "PROVIDER_TIMEOUT"}},
         ]
         self._create_sample_run("run_hist_failed", failed_events)
 
         approved_events = [
-            {"run_id": "run_hist_approved", "timestamp": 200.0, "event": "pipeline_started", "payload": {"task": "Approved task"}},
+            {"run_id": "run_hist_approved", "timestamp": 200.0, "event": "pipeline_started", "payload": {"task": "Approved task", "project_repo_path": str(active_root)}},
             {"run_id": "run_hist_approved", "timestamp": 210.0, "event": "pipeline_finished", "payload": {"final_status": "APPROVE"}},
         ]
         self._create_sample_run("run_hist_approved", approved_events)
@@ -489,7 +507,9 @@ class TestAgentFlowBackend(unittest.TestCase):
         self.assertIsNone(st["review"].get("human_decision"))
 
         # 3. Approve run
-        appr_res = self.client.post("/api/runs/run_awaiting_1/approve")
+        # Approval HTTP/reducer fixture must not merge a real repository.
+        with patch("orchestrator.agent_flow.server.merge_run_worktree", return_value={"success": True}):
+            appr_res = self.client.post("/api/runs/run_awaiting_1/approve")
         self.assertEqual(appr_res.status_code, 200)
         appr_data = appr_res.json()
         self.assertTrue(appr_data["accepted"])
@@ -507,8 +527,9 @@ class TestAgentFlowBackend(unittest.TestCase):
         self.assertEqual(double_rej.status_code, 400)
 
         # 5. Create another run for reject testing
+        active_root, _ = resolve_repo_root()
         awaiting_events_2 = [
-            {"run_id": "run_awaiting_2", "timestamp": 200.0, "event": "pipeline_started", "payload": {"task": "Add dark mode toggle"}},
+            {"run_id": "run_awaiting_2", "timestamp": 200.0, "event": "pipeline_started", "payload": {"task": "Add dark mode toggle", "project_repo_path": str(active_root)}},
             {"run_id": "run_awaiting_2", "timestamp": 205.0, "event": "stage_started", "stage": "reviewer", "cycle": 1, "payload": {}},
             {"run_id": "run_awaiting_2", "timestamp": 210.0, "event": "review_verdict", "stage": "reviewer", "cycle": 1, "payload": {"verdict": "APPROVE"}},
             {"run_id": "run_awaiting_2", "timestamp": 211.0, "event": "human_approval_required", "stage": "reviewer", "cycle": 1, "payload": {}},
@@ -517,7 +538,8 @@ class TestAgentFlowBackend(unittest.TestCase):
         self._create_sample_run("run_awaiting_2", awaiting_events_2)
 
         # Reject run with reason
-        rej_res = self.client.post("/api/runs/run_awaiting_2/reject", json={"reason": "Design needs more contrast"})
+        with patch("orchestrator.agent_flow.server.discard_run_worktree", return_value={"worktree_removed": True, "branch_deleted": True}):
+            rej_res = self.client.post("/api/runs/run_awaiting_2/reject", json={"reason": "Design needs more contrast"})
         self.assertEqual(rej_res.status_code, 200)
         rej_data = rej_res.json()
         self.assertTrue(rej_data["accepted"])
@@ -590,8 +612,9 @@ class TestAgentFlowBackend(unittest.TestCase):
         before_entries = set(p.name for p in prod_runs_dir.iterdir() if p.is_dir()) if prod_runs_dir.exists() else set()
 
         # Simulate synthetic retry and run operations inside isolated test environment
+        active_root, _ = resolve_repo_root()
         sample_events = [
-            {"run_id": "run_isolated_test", "timestamp": 100.0, "event": "pipeline_started", "payload": {"task": "Isolated Task"}},
+            {"run_id": "run_isolated_test", "timestamp": 100.0, "event": "pipeline_started", "payload": {"task": "Isolated Task", "project_repo_path": str(active_root)}},
             {"run_id": "run_isolated_test", "timestamp": 110.0, "event": "pipeline_finished", "payload": {"final_status": "FAILED"}},
         ]
         self._create_sample_run("run_isolated_test", sample_events)
@@ -613,41 +636,29 @@ class TestAgentFlowBackend(unittest.TestCase):
         self.assertEqual(before_entries, after_entries, "Production pipeline/runs directory was polluted by test run!")
 
     def test_prompt_preview_endpoint_and_security(self):
-        """Test prompt preview endpoint functionality and path traversal protection."""
-        # 1. Existing prompt preview
-        prompt_file = Path("pipeline/prompts/test_dummy_prompt.md")
-        full_prompt_path = events_module.AGENTS_ROOT / prompt_file
-        full_prompt_path.parent.mkdir(parents=True, exist_ok=True)
-        full_prompt_path.write_text("# Test Prompt\nDo something useful.", encoding="utf-8")
-
-        try:
-            res = self.client.get(f"/api/prompts/preview?file={prompt_file.as_posix()}")
-            self.assertEqual(res.status_code, 200)
-            data = res.json()
-            self.assertEqual(data["file"], prompt_file.as_posix())
-            self.assertIn("# Test Prompt", data["content"])
-
-            # Strips @file: prefix automatically
-            res_prefix = self.client.get(f"/api/prompts/preview?file=@file:{prompt_file.as_posix()}")
-            self.assertEqual(res_prefix.status_code, 200)
-            self.assertIn("# Test Prompt", res_prefix.json()["content"])
-
-            # Relative to workspace root
-            res_ws = self.client.get("/api/prompts/preview?file=pipeline/prompts/trayne_bug_triage.md")
-            if (events_module.AGENTS_ROOT.parent / "pipeline/prompts/trayne_bug_triage.md").exists():
-                self.assertEqual(res_ws.status_code, 200)
-                self.assertIn("trayne mvp bug triage", res_ws.json()["content"].lower())
-
-            # 2. Non-existent file -> 404
-            res_404 = self.client.get("/api/prompts/preview?file=pipeline/prompts/does_not_exist.md")
-            self.assertEqual(res_404.status_code, 404)
-
-            # 3. Path traversal attack -> 404 or blocked
-            res_traversal = self.client.get("/api/prompts/preview?file=../../../../../../etc/passwd")
-            self.assertEqual(res_traversal.status_code, 404)
-        finally:
-            if full_prompt_path.exists():
-                full_prompt_path.unlink()
+        """Deterministic prompt preview; no real prompt or workspace access."""
+        import orchestrator.agent_flow.server as server
+        agents = self.test_dir / "agents"
+        workspace = self.test_dir / "workspace"
+        workspace.mkdir()
+        relative = Path("pipeline/prompts/test_dummy_prompt.md")
+        prompt = agents / relative
+        prompt.parent.mkdir(parents=True)
+        prompt.write_text("# Test Prompt", encoding="utf-8")
+        ws_prompt = workspace / "pipeline/prompts/workspace_fixture.md"
+        ws_prompt.parent.mkdir(parents=True)
+        ws_prompt.write_text("Workspace fixture", encoding="utf-8")
+        with patch.object(server, "AGENTS_ROOT", agents), patch.object(server, "WORKSPACE_ROOT", workspace):
+            for value in (relative.as_posix(), "@file:" + relative.as_posix()):
+                response = self.client.get("/api/prompts/preview", params={"file": value})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["content"], "# Test Prompt")
+                self.assertEqual(Path(response.json()["resolved_path"]), prompt)
+            response = self.client.get("/api/prompts/preview", params={"file": "pipeline/prompts/workspace_fixture.md"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["content"], "Workspace fixture")
+            for value in ("pipeline/prompts/does_not_exist.md", "../../../../../../etc/passwd"):
+                self.assertEqual(self.client.get("/api/prompts/preview", params={"file": value}).status_code, 404)
 
 
 if __name__ == "__main__":

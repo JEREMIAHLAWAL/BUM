@@ -36,6 +36,22 @@ from orchestrator.pipeline import get_shared_context
 class TestDualVerification(unittest.TestCase):
     def setUp(self):
         self.temp_root = Path(tempfile.mkdtemp(prefix="bum_dual_verify_"))
+        # Reference architecture is explicit scratch data, never the live trayne checkout.
+        from unittest.mock import patch
+        mobile = self.temp_root / "mobile"
+        mobile.mkdir()
+        (mobile / "bum.config.json").write_text(json.dumps({
+            "name": "TRAYNE", "project_type": "react-native-expo",
+            "rules": {"forbidden_imports": ["@expo/vector-icons", "date-fns"],
+                      "required_packages": ["lucide-react-native"]},
+            "verification": {"typecheck_cmd": "npm run ts:check", "test_cmd": "npm test"}
+        }), encoding="utf-8")
+        for target, value in (("orchestrator.repo_tools.DERIVED_REPO_PATH", mobile),
+                              ("orchestrator.repo_tools._ACTIVE_PROJECT_PATH", None),
+                              ("orchestrator.repo_tools._RUN_WORKTREE_OVERRIDE", None)):
+            mock = patch(target, value)
+            mock.start()
+            self.addCleanup(mock.stop)
 
     def tearDown(self):
         set_active_project_path(None)

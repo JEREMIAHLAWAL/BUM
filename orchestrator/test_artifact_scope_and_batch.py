@@ -135,6 +135,16 @@ class ArtifactScopeTests(unittest.TestCase):
         self.stack.enter_context(patch.object(pipeline, "get_active_manifest", return_value=fixtures.manifest_for()))
         self.stack.enter_context(patch.object(pipeline, "repo_tree", return_value="FinderShip source tree"))
         self.stack.enter_context(patch.object(pipeline, "extract_type_skeletons", return_value=""))
+        self.stack.enter_context(patch.object(pipeline.worktree_tools, 'worktree_root_dir',
+                                             return_value=self.root / 'managed/worktrees'))
+        def ownership_query(args, *, cwd):
+            self.assertEqual(cwd, self.repo.resolve())
+            if args == ['worktree', 'list', '--porcelain', '-z']:
+                return {'returncode': 0, 'stdout': '', 'stderr': ''}
+            if args[:3] == ['show-ref', '--verify', '--quiet']:
+                return {'returncode': 1, 'stdout': '', 'stderr': ''}
+            raise AssertionError('Unexpected ownership query: ' + repr(args))
+        self.stack.enter_context(patch.object(pipeline.worktree_tools, '_run_git', side_effect=ownership_query))
         self.stack.enter_context(patch.object(pipeline, "create_run_worktree", return_value={
             "success": True, "worktree_path": str(self.repo)}))
         self.stack.enter_context(patch.object(pipeline, "set_run_worktree_override"))
