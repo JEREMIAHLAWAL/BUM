@@ -5,14 +5,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from orchestrator.pipeline import (
-    parse_reviewer_verdict,
-    MAX_REVIEW_CYCLES,
-)
-from orchestrator.git_tools import run_safe_git_command
+
+
 
 
 def test_retry_loop_logic():
+    from orchestrator.pipeline import (
+        parse_reviewer_verdict,
+        MAX_REVIEW_CYCLES,
+    )
+    from orchestrator.git_tools import run_safe_git_command
+
     print("=== TESTING REVIEW RETRY LOOP LOGIC ===")
 
     # 1. Test Reviewer verdict parsing: APPROVE
@@ -97,5 +100,9 @@ REASON: Environment dependency fix needed.
     print("\nREVIEW_RETRY_LOOP_OK")
 
 
-if __name__ == "__main__":
+def main():
     test_retry_loop_logic()
+
+
+if __name__ == "__main__":
+    main()

@@ -5,9 +5,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from orchestrator.run import run_agent
-from orchestrator.repo_tools import repo_tree
-from orchestrator.command_tools import run_safe_command
+
+
+
 
 
 def read_pipeline_file(name: str) -> str:
@@ -32,100 +32,109 @@ STDERR:
 """.strip()
 
 
-# Context
-handoff = read_pipeline_file("HANDOFF.md")
-spec = read_pipeline_file("spec.md")
-changes = read_pipeline_file("changes.md")
-tree = repo_tree(max_depth=3)
+def main():
+    from orchestrator.run import run_agent
+    from orchestrator.repo_tools import repo_tree
+    from orchestrator.command_tools import run_safe_command
 
-# Controlled test execution
-typecheck_result = run_safe_command(
-    ["npm", "run", "ts:check"]
-)
+    # Context
+    handoff = read_pipeline_file("HANDOFF.md")
+    spec = read_pipeline_file("spec.md")
+    changes = read_pipeline_file("changes.md")
+    tree = repo_tree(max_depth=3)
 
-test_result = run_safe_command(
-    ["npm", "test"]
-)
+    # Controlled test execution
+    typecheck_result = run_safe_command(
+        ["npm", "run", "ts:check"]
+    )
 
-prompt = f"""
-You are the Tester agent for Trayne.
+    test_result = run_safe_command(
+        ["npm", "test"]
+    )
 
-This is a TESTER COMMAND-CAPABILITY VERIFICATION.
+    prompt = f"""
+    You are the Tester agent for Trayne.
 
-You are receiving:
-1. The Trayne engineering handoff
-2. The current Planner spec
-3. The current changes log
-4. The real Trayne repository tree
-5. Results from approved commands executed by the orchestrator
+    This is a TESTER COMMAND-CAPABILITY VERIFICATION.
 
-IMPORTANT:
+    You are receiving:
+    1. The Trayne engineering handoff
+    2. The current Planner spec
+    3. The current changes log
+    4. The real Trayne repository tree
+    5. Results from approved commands executed by the orchestrator
 
-The orchestrator executed the commands.
-You did NOT receive arbitrary shell access.
+    IMPORTANT:
 
-Do not:
-- modify files
-- write implementation code
-- act as Reviewer
-- invent test results
-- claim commands were executed unless their output appears below
+    The orchestrator executed the commands.
+    You did NOT receive arbitrary shell access.
 
-Inspect the supplied command results.
+    Do not:
+    - modify files
+    - write implementation code
+    - act as Reviewer
+    - invent test results
+    - claim commands were executed unless their output appears below
 
-If:
-- you can understand the command outputs,
-- the commands clearly ran against Trayne,
-- and you can use these results for future testing,
+    Inspect the supplied command results.
 
-respond with exactly:
+    If:
+    - you can understand the command outputs,
+    - the commands clearly ran against Trayne,
+    - and you can use these results for future testing,
 
-TESTER_COMMAND_EXECUTION_OK
+    respond with exactly:
 
-If not, respond:
+    TESTER_COMMAND_EXECUTION_OK
 
-TESTER_COMMAND_EXECUTION_FAIL
+    If not, respond:
 
-and briefly explain why.
+    TESTER_COMMAND_EXECUTION_FAIL
 
-
-===== HANDOFF.md =====
-
-{handoff}
-
-
-===== spec.md =====
-
-{spec}
+    and briefly explain why.
 
 
-===== changes.md =====
+    ===== HANDOFF.md =====
 
-{changes}
-
-
-===== REPOSITORY TREE =====
-
-{tree}
+    {handoff}
 
 
-===== TYPESCRIPT CHECK =====
+    ===== spec.md =====
 
-{format_result(typecheck_result)}
+    {spec}
 
 
-===== TEST SUITE =====
+    ===== changes.md =====
 
-{format_result(test_result)}
-"""
+    {changes}
 
-response = run_agent("tester", prompt)
 
-print("\n=== TESTER COMMAND EXECUTION TEST ===\n")
-print(response)
+    ===== REPOSITORY TREE =====
 
-print("\n=== TYPESCRIPT RESULT ===")
-print(format_result(typecheck_result))
+    {tree}
 
-print("\n=== TEST RESULT ===")
-print(format_result(test_result))
+
+    ===== TYPESCRIPT CHECK =====
+
+    {format_result(typecheck_result)}
+
+
+    ===== TEST SUITE =====
+
+    {format_result(test_result)}
+    """
+
+    response = run_agent("tester", prompt)
+
+    print("\n=== TESTER COMMAND EXECUTION TEST ===\n")
+    print(response)
+
+    print("\n=== TYPESCRIPT RESULT ===")
+    print(format_result(typecheck_result))
+
+    print("\n=== TEST RESULT ===")
+    print(format_result(test_result))
+
+
+if __name__ == "__main__":
+    main()

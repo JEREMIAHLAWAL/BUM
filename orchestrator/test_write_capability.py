@@ -5,17 +5,20 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from orchestrator.repo_tools import (
-     write_file,
-     read_file,
-     delete_file,
-     file_exists,
-     get_repo_root,
-)
-from orchestrator.git_tools import run_safe_git_command
+
+
 
 
 def run_write_capability_test():
+    from orchestrator.repo_tools import (
+         write_file,
+         read_file,
+         delete_file,
+         file_exists,
+         get_repo_root,
+    )
+    from orchestrator.git_tools import run_safe_git_command
+
     print("=== TESTING CONTROLLED REPOSITORY WRITE ACCESS ===")
 
     test_filename = "agent_write_test.tmp"
@@ -86,5 +89,9 @@ def run_write_capability_test():
     print("\nCONTROLLED_WRITE_ACCESS_OK")
 
 
-if __name__ == "__main__":
+def main():
     run_write_capability_test()
+
+
+if __name__ == "__main__":
+    main()

@@ -7,6 +7,58 @@ from orchestrator.manifest import BumManifest
 from orchestrator.repo_tools import get_repo_root, get_active_manifest
 
 
+def _ownership_section_lines(spec_text: str):
+    """Yield ownership lines only from exact, heading-delimited sections.
+
+    Nested role headings belong to FILE BOUNDARIES; unrelated headings (even
+    deeper ones) end the grant. Inline mentions and fenced examples are not
+    authority. Keep this separate from the signature/token extractors.
+    """
+    section = None
+    section_level = 0
+    fence = None
+    for line in spec_text.splitlines():
+        stripped = line.strip()
+        marker = re.match(r"^(`{3,}|~{3,})", stripped)
+        if marker:
+            token = marker.group(1)
+            if fence is None:
+                fence = token
+            elif token[0] == fence[0] and len(token) >= len(fence):
+                fence = None
+            continue
+        if fence is not None:
+            continue
+
+        markdown = re.match(r"^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$", line)
+        label = stripped.removeprefix("**").removesuffix("**").strip()
+        plain = re.fullmatch(r"[A-Za-z][A-Za-z0-9 /(),—–-]*:", label)
+        if markdown or plain:
+            title = markdown.group(2) if markdown else label
+            level = len(markdown.group(1)) if markdown else 7
+            title = title.strip("* ").rstrip(":").strip()
+            title = re.sub(r"^\d+(?:\.\d+)*\.?\s+", "", title)
+            if re.fullmatch(
+                r"(?:FILES?(?:\s+TO\s+(?:CREATE(?:\s+OR\s+MODIFY)?|MODIFY|CHANGE))?"
+                r"|FILE\s+(?:MODIFICATION\s+)?BOUNDARIES)(?:\s+\(exact paths\))?",
+                title, re.IGNORECASE,
+            ):
+                section, section_level = "file_boundaries", level
+            elif re.fullmatch(r"NEEDS\s+CONTEXT|REFERENCE(?:-ONLY)?\s+FILES", title, re.IGNORECASE):
+                section, section_level = "reference_files", level
+            elif (section == "file_boundaries" and level > section_level and re.match(
+                r"^(?:(?:Frontend|Backend|Tester|Coordinator|Planner|Integrator)\b"
+                r"|(?:Create|Modify)\s*\((?:Frontend|Backend|Tester|Coordinator|Planner|Integrator)\b)",
+                title, re.IGNORECASE,
+            )):
+                pass  # A nested owner subdivision, not a new authority section.
+            else:
+                section = None
+            continue
+        if section:
+            yield section, line
+
+
 def extract_contract_from_spec(spec_text: str, manifest: Optional[BumManifest] = None) -> Dict[str, Any]:
     """
     Extract structured spec contract boundaries from the Planner's spec.md and active manifest.
@@ -40,48 +92,19 @@ def extract_contract_from_spec(spec_text: str, manifest: Optional[BumManifest] =
                 if clean_l not in negative_constraints:
                     negative_constraints.append(clean_l)
 
-    # 2. File boundaries
+    # 2. Writable and reference-only paths use the same heading boundaries.
+    # Keep route-group parentheses and root-level filenames intact.
     file_boundaries: List[str] = []
-    # Match bulleted file lists or FILES TO CREATE / MODIFY
-    files_section = re.search(r"(?:FILES?(?:\s+TO\s+(?:CREATE|MODIFY|CHANGE))?|FILE\s+BOUNDARIES)[\s\S]*?(?=\n\n[A-Z0-9_\- ]+:|\Z)", spec_text, re.IGNORECASE)
-    if files_section:
-        for line in files_section.group(0).splitlines():
-            # Match paths like `src/app/index.tsx` or - src/app/index.tsx
-            # or `src/app/(app)/_layout.tsx` (Expo Router / Next.js route-group
-            # folders use parens, e.g. `(app)`, `(auth)` — the char class must
-            # include '()' or the match truncates to just "_layout.tsx" with
-            # no slash, silently dropping the path from file_boundaries).
-            match = re.findall(r"[`']?([a-zA-Z0-9_./\-()]+\.[a-zA-Z0-9]+)[`']?", line)
-            for m in match:
-                if "/" in m or "\\" in m:
-                    clean_path = m.replace("\\", "/").strip("./")
-                    if clean_path not in file_boundaries:
-                        file_boundaries.append(clean_path)
-
-    # 2b. Reference-only files (NEEDS CONTEXT): read-only files the Planner
-    # flags as required reading before implementation but that are NOT in
-    # file_boundaries (not being created/modified). Frontend/Backend have no
-    # read tool, so without this extraction these paths are dead prompt text
-    # and agents guess at import names/shapes (e.g. hallucinating a `theme`
-    # export that doesn't exist). Anchored to an actual markdown heading
-    # line so it can't false-match an inline mention of the phrase elsewhere
-    # in the spec (e.g. inside a NEGATIVE CONSTRAINTS bullet).
     reference_files: List[str] = []
-    needs_context_section = re.search(
-        r"^#{1,6}\s*\d*\.?\s*NEEDS\s+CONTEXT.*$([\s\S]*?)(?=^#{1,6}\s|\Z)",
-        spec_text,
-        re.IGNORECASE | re.MULTILINE,
-    )
-    if needs_context_section:
-        for line in needs_context_section.group(1).splitlines():
-            # Same parens fix as file_boundaries above — route-group paths
-            # like `(app)/_layout.tsx` must not be truncated.
-            match = re.findall(r"[`']?([a-zA-Z0-9_./\-()]+\.[a-zA-Z0-9]+)[`']?", line)
-            for m in match:
-                if "/" in m or "\\" in m:
-                    clean_path = m.replace("\\", "/").strip("./")
-                    if clean_path not in reference_files and clean_path not in file_boundaries:
-                        reference_files.append(clean_path)
+    paths_by_section = {"file_boundaries": file_boundaries, "reference_files": reference_files}
+    for section, line in _ownership_section_lines(spec_text):
+        for path in re.findall(r"[`']?([a-zA-Z0-9_./\-()]+\.[a-zA-Z0-9]+)[`']?", line):
+            if path not in paths_by_section[section]:
+                paths_by_section[section].append(path)
+
+    conflicts = sorted(set(file_boundaries).intersection(reference_files))
+    if conflicts:
+        raise ValueError("Conflicting writable/reference Planner ownership: " + ", ".join(conflicts))
 
     # 3. Exported signatures
     exported_signatures: List[str] = []

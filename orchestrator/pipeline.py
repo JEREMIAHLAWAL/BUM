@@ -4,6 +4,7 @@ import shlex
 import subprocess
 import sys
 import time
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,7 @@ from orchestrator.repo_tools import (
     read_file,
     write_file,
     delete_file,
+    check_write_allowed,
     file_exists,
     resolve_task_file_references,
     get_file_boundary_contents,
@@ -58,10 +60,27 @@ from orchestrator.providers import ProviderError, ProviderTimeoutError, Provider
 AGENT_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PIPELINE_DIR = AGENT_PROJECT_ROOT / "pipeline"
 MAX_REVIEW_CYCLES = 3
+_artifact_directory: ContextVar[Optional[Path]] = ContextVar("pipeline_artifact_directory", default=None)
+_artifact_project: ContextVar[Optional[Path]] = ContextVar("pipeline_artifact_project", default=None)
+
+
+def get_pipeline_dir() -> Path:
+    """Run-local artifact directory; legacy direct helpers retain their default."""
+    return _artifact_directory.get() or PIPELINE_DIR
+
+
+def _artifact_provenance_matches(metadata_path: Path) -> bool:
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        source = metadata.get("project_repo_path")
+        project = _artifact_project.get() or get_repo_root()
+        return bool(source and Path(source).resolve() == Path(project).resolve())
+    except (OSError, ValueError, TypeError, RuntimeError):
+        return False
 
 
 def read_pipeline_file(name: str) -> str:
-    path = PIPELINE_DIR / name
+    path = get_pipeline_dir() / name
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
@@ -93,13 +112,14 @@ def validate_planner_spec(spec: str) -> dict:
 
 
 def write_pipeline_file(name: str, content: str) -> None:
-    path = PIPELINE_DIR / name
+    path = get_pipeline_dir() / name
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 
 
 def get_salvaged_context() -> str:
-    salvage_dir = PIPELINE_DIR / "salvage" / "latest"
-    if not salvage_dir.exists():
+    salvage_dir = get_pipeline_dir() / "salvage" / "latest"
+    if not salvage_dir.exists() or not _artifact_provenance_matches(salvage_dir / "meta.json"):
         return ""
     
     files = list(salvage_dir.rglob("*"))
@@ -118,7 +138,9 @@ def get_salvaged_context() -> str:
 
 
 def salvage_unapproved_work(run_id: str) -> None:
-    salvage_dir = PIPELINE_DIR / "salvage" / "latest"
+    salvage_dir = get_pipeline_dir() / "salvage" / "latest"
+    if _artifact_directory.get() is None:
+        raise RuntimeError("Salvage requires a run-scoped artifact directory; shared inputs are read-only")
     import shutil
     if salvage_dir.exists():
         shutil.rmtree(salvage_dir, ignore_errors=True)
@@ -161,19 +183,25 @@ def salvage_unapproved_work(run_id: str) -> None:
     meta = {
         "run_id": run_id,
         "saved_at": time.time(),
+        "project_repo_path": str((_artifact_project.get() or repo_root).resolve()),
     }
     (salvage_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 def clear_salvaged_work() -> None:
-    salvage_dir = PIPELINE_DIR / "salvage" / "latest"
+    salvage_dir = get_pipeline_dir() / "salvage" / "latest"
+    if _artifact_directory.get() is None:
+        return  # Never remove shared legacy/user salvage.
     import shutil
     if salvage_dir.exists():
         shutil.rmtree(salvage_dir, ignore_errors=True)
 
 
 def get_shared_context() -> str:
-    handoff = read_pipeline_file("HANDOFF.md")
+    handoff = read_pipeline_file("HANDOFF.md") if (
+        _artifact_directory.get() is not None
+        or _artifact_provenance_matches(get_pipeline_dir() / "artifact_context.json")
+    ) else ""
     tree = repo_tree()
     salvaged = get_salvaged_context()
     repo_root = get_repo_root()
@@ -269,7 +297,94 @@ class MalformedWriteError(ValueError):
     pass
 
 
-def parse_and_apply_agent_file_operations(agent_output: str, role: str) -> dict:
+def _tester_relative_path(value: str, *, directory: bool = False) -> str:
+    """Accept canonical repo-relative paths, never normalize hostile aliases."""
+    if not isinstance(value, str):
+        raise PermissionError("Tester paths must be repository-relative strings")
+    path = value[:-1] if directory and value.endswith("/") else value
+    parts = path.split("/")
+    if (not path or any(c in path for c in '\\:*?<>|"')
+            or any(ord(c) < 32 for c in path)
+            or any(not p or p in (".", "..") or p != p.strip() or p.endswith(".")
+                   or p.casefold() == ".git" or p.casefold().startswith(".env") for p in parts)):
+        raise PermissionError(f"Unsafe Tester path: {value!r}")
+    return path
+
+
+def _tester_write_roots(manifest) -> list[str]:
+    roots = getattr(getattr(manifest, "rules", None), "test_write_roots", [])
+    if not isinstance(roots, (list, tuple)):
+        raise PermissionError("rules.test_write_roots must be a list of test-only directories")
+    return [_tester_relative_path(root, directory=True) for root in roots]
+
+
+def _validate_tester_file_operations(parsed_actions: list, contract: Optional[dict]) -> None:
+    """Preflight the entire batch; actual IO still uses the existing repo guards."""
+    roots = _tester_write_roots(get_active_manifest())
+    if not roots:
+        raise PermissionError("Tester writes require manifest rules.test_write_roots")
+    if not contract or not contract.get("file_boundaries"):
+        raise PermissionError("Tester writes require exact Planner contract file boundaries")
+    boundaries = contract["file_boundaries"]
+    references = contract.get("reference_files", [])
+    repo = get_repo_root().resolve()
+    for _, rel_path, _ in parsed_actions:
+        path = _tester_relative_path(rel_path)
+        if path not in boundaries or path in references:
+            raise PermissionError(f"Tester path outside writable Planner contract: {path}")
+        matching_roots = [root for root in roots if path.startswith(root + "/")]
+        if not matching_roots:
+            raise PermissionError(f"Tester path outside manifest test-only roots: {path}")
+        target = repo / path
+        # Refuse links/junctions even within the root: they can alias production files.
+        cursor = repo
+        for part in path.split("/"):
+            cursor = cursor / part
+            if cursor.is_symlink() or (hasattr(cursor, "is_junction") and cursor.is_junction()):
+                raise PermissionError(f"Tester cannot write through a symlink/junction: {path}")
+        resolved = target.resolve()
+        if resolved.is_file() and resolved.stat().st_nlink > 1:
+            raise PermissionError(f"Tester cannot edit a hard-linked file: {path}")
+        if not resolved.is_relative_to(repo) or not any(
+                resolved.is_relative_to((repo / root).resolve()) for root in matching_roots):
+            raise PermissionError(f"Tester path escapes test root: {path}")
+        check_write_allowed(resolved, path)
+
+
+def _preflight_tester_path_state(parsed_actions: list) -> None:
+    """Simulate sequential state before writes; unexpected IO failures still propagate."""
+    root = get_repo_root().resolve()
+    state = {}
+
+    def kind(path: Path) -> str:
+        if path not in state:
+            state[path] = "directory" if path.is_dir() else "file" if path.exists() else "missing"
+        return state[path]
+
+    for operation, relative, _ in parsed_actions:
+        target = root / _tester_relative_path(relative)
+        parents = []
+        parent = target.parent
+        while parent != root:
+            parents.append(parent)
+            parent = parent.parent
+        for parent in reversed(parents):
+            if kind(parent) == "file":
+                raise NotADirectoryError(f"Tester path parent is a file: {parent.relative_to(root)}")
+        current = kind(target)
+        if current == "directory":
+            raise IsADirectoryError(f"Tester {operation} requires a file, not a directory: {relative}")
+        if operation == "delete":
+            if current == "missing":
+                raise FileNotFoundError(f"Tester cannot delete nonexistent file: {relative}")
+            state[target] = "missing"
+        else:
+            for parent in parents:
+                state[parent] = "directory"
+            state[target] = "file"
+
+
+def parse_and_apply_agent_file_operations(agent_output: str, role: str, *, contract: Optional[dict] = None) -> dict:
     if not agent_output:
         raise MalformedWriteError(
             f"Agent [{role}] returned empty/None output. Nothing to parse — "
@@ -299,11 +414,19 @@ def parse_and_apply_agent_file_operations(agent_output: str, role: str) -> dict:
     for match in write_pattern.finditer(agent_output):
         rel_path = match.group(1).strip()
         content = match.group(2)
-        parsed_actions.append(("write", rel_path, content))
+        parsed_actions.append((match.start(), "write", rel_path, content))
 
     for match in delete_pattern.finditer(agent_output):
         rel_path = match.group(1).strip()
-        parsed_actions.append(("delete", rel_path, None))
+        parsed_actions.append((match.start(), "delete", rel_path, None))
+
+    # Preserve sequential semantics, including delete then write.
+    parsed_actions = [entry[1:] for entry in sorted(parsed_actions, key=lambda entry: entry[0])]
+
+    # Tester is read-only unless the workspace explicitly opts into bounded tests.
+    if role == "tester" and parsed_actions:
+        _validate_tester_file_operations(parsed_actions, contract)
+        _preflight_tester_path_state(parsed_actions)
 
     created = []
     modified = []
@@ -476,10 +599,12 @@ def execute_test_and_git_commands(baseline: Optional[dict] = None):
 
     # Dynamically select verification commands from active manifest
     if manifest and manifest.verification:
-        if manifest.verification.typecheck_cmd:
-            test_commands.append(shlex.split(manifest.verification.typecheck_cmd))
-        if manifest.verification.test_cmd:
-            test_commands.append(shlex.split(manifest.verification.test_cmd))
+        for name in ("typecheck_cmd", "test_cmd", "lint_cmd", "build_cmd"):
+            command = getattr(manifest.verification, name, None)
+            if command and command.strip():
+                argv = shlex.split(command)
+                if argv and argv not in test_commands:
+                    test_commands.append(argv)
 
     if not test_commands:
         test_commands = [
@@ -584,6 +709,8 @@ def run_pipeline(
        risk during execution.
     """
     effective_run_id = run_id or generate_run_id()
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", effective_run_id):
+        raise ValueError("Invalid run_id for artifact directory")
     try:
         real_repo_root, _source = resolve_repo_root()
     except Exception as exc:
@@ -595,15 +722,35 @@ def run_pipeline(
     if not wt_result.get("success"):
         raise RuntimeError(f"Failed to create isolated run worktree: {wt_result.get('error')}")
 
-    set_run_worktree_override(wt_result["worktree_path"])
     try:
-        return _run_pipeline_impl(
-            task,
-            run_id=effective_run_id,
-            cancellation_token=cancellation_token,
-            retry_of=retry_of,
-            label=label,
-        )
+        real_repo_root = Path(real_repo_root).resolve()
+        run_directory = (AGENT_PROJECT_ROOT / ".bum" / "runs" / effective_run_id).resolve()
+        artifact_dir = run_directory / "pipeline"
+        # A retry is lineage only: never import/overwrite an older run's artifacts.
+        artifact_dir.mkdir(parents=True, exist_ok=False)
+        metadata = {
+            "schema_version": 1,
+            "run_id": effective_run_id,
+            "artifact_dir": str(artifact_dir),
+            "project_repo_path": str(real_repo_root),
+            "retry_of": retry_of,
+            "isolated": True,
+        }
+        (run_directory / "artifact_context.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        artifact_token = _artifact_directory.set(artifact_dir)
+        project_token = _artifact_project.set(real_repo_root)
+        try:
+            set_run_worktree_override(wt_result["worktree_path"])
+            return _run_pipeline_impl(
+                task,
+                run_id=effective_run_id,
+                cancellation_token=cancellation_token,
+                retry_of=retry_of,
+                label=label,
+            )
+        finally:
+            _artifact_project.reset(project_token)
+            _artifact_directory.reset(artifact_token)
     finally:
         # Always clear the override first so subsequent calls (status
         # checks, other runs) don't accidentally resolve into a worktree
@@ -618,7 +765,7 @@ def run_pipeline(
         # happens here for every outcome EXCEPT awaiting-approval, which is
         # signaled by inspecting the run's own event log.
         try:
-            run_dir = (Path(__file__).resolve().parent.parent / ".bum" / "runs" / effective_run_id)
+            run_dir = AGENT_PROJECT_ROOT / ".bum" / "runs" / effective_run_id
             events_file = run_dir / "events.jsonl"
             awaiting_approval = False
             if events_file.exists():
@@ -684,7 +831,7 @@ def _run_pipeline_impl(
     def safe_run_agent(role: str, user_prompt: str, current_stage: str, cycle_num: Optional[int] = None) -> str:
         """Execute an agent call wrapped in provider error & timeout safety."""
         try:
-            return run_agent(role, user_prompt)
+            return run_agent(role, source_context + user_prompt)
         except ProviderTimeoutError as exc:
             emit_event(
                 event="stage_failed",
@@ -748,6 +895,9 @@ def _run_pipeline_impl(
         "repo_path": repo_path_str,
         "max_review_cycles": MAX_REVIEW_CYCLES,
         "agent_configs": agent_configs,
+        "artifact_dir": str(get_pipeline_dir().resolve()),
+        "project_repo_path": str((_artifact_project.get() or get_repo_root()).resolve()),
+        "isolated": _artifact_directory.get() is not None,
     }
     if label:
         pipeline_started_payload["label"] = label
@@ -819,6 +969,16 @@ def _run_pipeline_impl(
 
     manifest = get_active_manifest()
     project_name = manifest.name if manifest else "Target Workspace"
+    tester_write_roots = _tester_write_roots(manifest)
+    tester_planning_constraints = ""
+    if tester_write_roots:
+        tester_planning_constraints = (
+            "TESTER TEST-AUTHORING OPT-IN:\n"
+            f"- Test-only roots: {json.dumps(tester_write_roots)}.\n"
+            "- Include exact independent Tester test/fixture files in FILES TO MODIFY.\n"
+            "- Tester may write only their intersection with these test-only roots.\n"
+            "- Do not assign production implementation or configuration files to Tester.\n"
+        )
 
     # Dynamic baseline typecheck if configured
     if manifest and manifest.verification and manifest.verification.typecheck_cmd:
@@ -904,6 +1064,13 @@ def _run_pipeline_impl(
         },
     )
 
+    resolved_task = resolve_task_file_references(task)
+    write_pipeline_file("resolved_task.md", resolved_task)
+    source_context = (
+        "=== IMMUTABLE TASK SOURCE (resolved once before implementation) ===\n"
+        "These are source instructions and reference contents, NOT authorization to mutate source files.\n"
+        + resolved_task + "\n=== END IMMUTABLE TASK SOURCE ===\n\n"
+    )
     shared_context = get_shared_context()
 
     # Check cancellation checkpoint before Planner
@@ -920,7 +1087,6 @@ def _run_pipeline_impl(
         },
     )
     print("\n[1/5] PLANNER STARTED", flush=True)
-    resolved_task = resolve_task_file_references(task)
     planner_prompt = f"""
 {shared_context}
 
@@ -937,6 +1103,8 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
 - Do NOT invent unsupported infrastructure, backend APIs, or unneeded dependencies.
 - If backend work is not needed, explicitly state: "BACKEND TASK: None."
 - Clearly specify the exact files to create or modify for Frontend and Backend.
+
+{tester_planning_constraints}
 
 Return the complete contents that should be stored in:
 
@@ -993,7 +1161,7 @@ pipeline/spec.md
     write_pipeline_file("spec.md", spec)
 
     # Extract & write immutable spec contract
-    contract_res = write_spec_contract(spec, manifest=manifest, pipeline_dir=PIPELINE_DIR)
+    contract_res = write_spec_contract(spec, manifest=manifest, pipeline_dir=get_pipeline_dir())
     contract_md = contract_res["markdown"]
     existing_file_contents = get_file_boundary_contents(
         contract_res["contract"].get("file_boundaries", []),
@@ -1202,6 +1370,65 @@ When finished, provide your standard BACKEND CHANGES summary at the end of your 
             },
         )
         print("\nTESTER STARTED", flush=True)
+        tester_author_duration = 0.0
+        if tester_write_roots:
+            existing_file_contents = get_file_boundary_contents(
+                contract_res["contract"].get("file_boundaries", []),
+                reference_files=contract_res["contract"].get("reference_files", []),
+            )
+            author_prompt = f"""
+{shared_context}
+
+PHASE: AUTHOR_TESTS
+You are the existing Tester for {project_name}, authoring independent tests before verification.
+This is NOT the assessment phase. Do not claim tests ran or report PASS.
+Test-only manifest roots: {json.dumps(tester_write_roots)}
+Only exact writable files in BOTH these roots AND the immutable Planner contract are authorized.
+Never edit production code, dependencies, verification configuration, .env or .git.
+Reference-only files are read-only. Do not traverse paths or use symlinks/junctions.
+Use independent assertions/fixtures for the Planner acceptance criteria, including negative cases.
+Do not weaken or delete coverage to make failures pass. If no authorized test files exist, report a blocker.
+No shell access. The orchestrator will run the manifest verification commands after applying your test files.
+To create/update a test file use the existing protocol with COMPLETE contents:
+```write:tests/example_test.py
+<complete test file contents>
+```
+To delete an obsolete authorized test file (never to bypass a failing check):
+```delete:tests/obsolete_test.py
+```
+Use actual authorized paths, not the examples above. Otherwise return no write/delete blocks.
+
+PLANNER SPEC:
+{spec}
+
+IMMUTABLE SPEC CONTRACT:
+{contract_md}
+
+CURRENT FILE CONTENTS (reference-only files must not be changed):
+{existing_file_contents}
+
+BUILDER CHANGES:
+{changes}
+"""
+            t0_author = time.time()
+            tester_author_output = safe_run_agent("tester", author_prompt, current_stage="tester", cycle_num=cycle)
+            tester_author_duration = time.time() - t0_author
+            # Only this explicit pre-verification phase is parsed for file operations.
+            check_cancellation(current_stage="tester", cycle_num=cycle)
+            tester_accounting = parse_and_apply_agent_file_operations(
+                tester_author_output, role="tester", contract=contract_res["contract"])
+            emit_event(
+                event="stage_output", stage="tester", cycle=cycle,
+                payload={"role": "tester", "phase": "author_tests", "output": tester_author_output,
+                         "file_operations": tester_accounting, "duration_sec": tester_author_duration},
+            )
+            changes += f"\n\n## TESTER TEST FILES (CYCLE {cycle})\n{json.dumps(tester_accounting)}"
+            write_pipeline_file("changes.md", changes)
+            existing_file_contents = get_file_boundary_contents(
+                contract_res["contract"].get("file_boundaries", []),
+                reference_files=contract_res["contract"].get("reference_files", []),
+            )
+
         command_results, git_results, attribution = execute_test_and_git_commands(baseline=git_baseline)
         
         # Evidence-on-disk: Persist raw results and verification summary
@@ -1213,6 +1440,10 @@ When finished, provide your standard BACKEND CHANGES summary at the end of your 
         untracked_contents = attribution.get("current_untracked_contents", get_untracked_files_content()) if attribution else get_untracked_files_content()
         current_tree = repo_tree()
 
+        tester_authored_context = (
+            f"\nCURRENT CONTRACT FILE CONTENTS AFTER TEST AUTHORING:\n{existing_file_contents}\n"
+            if tester_write_roots else ""
+        )
         tester_prompt = f"""
 CURRENT REPOSITORY TREE AFTER IMPLEMENTATION:
 {current_tree}
@@ -1236,7 +1467,10 @@ UNTRACKED IMPLEMENTATION FILE CONTENTS:
 {untracked_contents}
 
 IMPORTANT INSTRUCTIONS FOR TESTER:
+- PHASE: ASSESS_RESULTS. Read-only: never emit or apply write/delete blocks in this phase.
+- Only the explicit pre-verification authoring phase may change opted-in test files.
 - This is a REAL IMPLEMENTATION test for {project_name}.
+{tester_authored_context}
 - Files have been written to disk by Frontend and/or Backend.
 - You do NOT have arbitrary shell access; the above commands were executed in a controlled sandbox by the orchestrator.
 - Do NOT fabricate PASS.
@@ -1259,7 +1493,8 @@ BLOCKERS:
 
         t0 = time.time()
         tester_result = safe_run_agent("tester", tester_prompt, current_stage="tester", cycle_num=cycle)
-        t_tester = time.time() - t0
+        # Assessment narration is deliberately never parsed for file operations.
+        t_tester = time.time() - t0 + tester_author_duration
         last_tester_output = tester_result
         emit_event(
             event="stage_output",
@@ -1267,6 +1502,7 @@ BLOCKERS:
             cycle=cycle,
             payload={
                 "role": "tester",
+                "phase": "assess_results",
                 "cycle": cycle,
                 "output": tester_result,
                 "duration_sec": t_tester,
@@ -1332,7 +1568,7 @@ UNTRACKED IMPLEMENTATION FILE CONTENTS:
 
 IMPORTANT INSTRUCTIONS FOR REVIEWER:
 - Review the actual implementation changes made by Frontend/Backend for {project_name}.
-- Inspect ON-DISK VERIFICATION EVIDENCE (.evidence/): If TypeScript check or test execution has failures or non-zero exit codes, you MUST issue CHANGES REQUIRED.
+- Inspect ON-DISK VERIFICATION EVIDENCE (.evidence/): If any configured typecheck, test, lint or build command fails or has a non-zero exit code, you MUST issue CHANGES REQUIRED.
 - IMPORTANT ATTRIBUTION RULES:
   * Inspect the "GIT WORKTREE & TASK ATTRIBUTION" section carefully.
   * Evaluate scope and acceptance criteria strictly against the "CURRENT RUN DELTA" (files created, modified, or deleted during THIS pipeline run).

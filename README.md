@@ -170,10 +170,17 @@ To target any repository, place a `bum.config.json` in the root of that project:
 
 ## 🧪 Testing & Verification
 
-Run the full orchestrator test suite:
+Run the offline orchestrator regression suite:
 ```bash
 python -m unittest discover -s orchestrator -p "test_*.py"
 ```
+
+Legacy provider/context/capability scripts are import-safe and expose explicit
+`main()` entrypoints for manual use. Test discovery must not call live providers,
+execute development commands, or mutate a project merely by importing a module.
+`orchestrator.test_legacy_import_safety` enforces that boundary. Manual smoke tests
+remain separate evidence and must target an explicitly selected disposable
+workspace; they are not part of offline regression verification.
 
 ---
 

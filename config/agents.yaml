@@ -4,6 +4,12 @@ agents:
     provider: openrouter
     model: deepseek/deepseek-v4.1-flash
     instructions: planner/instructions.md
+    # Keep the existing total ceiling; lower reasoning effort leaves room for
+    # visible output. Effort is advisory, not a guaranteed numeric reservation.
+    # This model advertises low effort, not a reasoning.max_tokens budget.
+    max_tokens: 16384
+    reasoning:
+      effort: low
 
   frontend:
     provider: openrouter

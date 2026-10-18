@@ -36,6 +36,10 @@ def read_pipeline_file(name: str) -> str:
 
 
 def run_test_and_review():
+    raise RuntimeError(
+        "Legacy resume is disabled: shared artifacts and the discarded worktree cannot be "
+        "safely restored. Use the run's /retry endpoint for a new isolated full pipeline run."
+    )
     print("=== RESUMING PIPELINE: TESTER & REVIEWER EVALUATION ===")
 
     spec = read_pipeline_file("spec.md")

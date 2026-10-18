@@ -9,8 +9,9 @@ and verification environments dynamically.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, ValidationError
 
 
@@ -35,6 +36,19 @@ class ManifestRules(BaseModel):
     prohibited_files: List[str] = Field(
         default_factory=list,
         description="Specific file paths that agents must never write or modify."
+    )
+    test_write_roots: List[str] = Field(
+        default_factory=list,
+        description="Explicit guarded Tester test-authoring opt-in, relative to project root. Does not bypass global write guards or prohibited files."
+    )
+
+
+class ManifestWorktree(BaseModel):
+    """No configurable executables, arguments, or shell commands."""
+    model_config = {"extra": "forbid"}
+    bootstrap: Optional[Literal["pnpm-frozen"]] = Field(
+        None,
+        description="Explicit opt-in to isolated pnpm install --frozen-lockfile before baseline. Requires an exact packageManager pnpm pin, compatible Node, and a committed lockfile. Lifecycle scripts are disabled. No auto-install of tooling."
     )
 
 
@@ -90,9 +104,25 @@ class BumManifest(BaseModel):
     rules: ManifestRules = Field(default_factory=ManifestRules)
     verification: ManifestVerification = Field(default_factory=ManifestVerification)
     context: ManifestContext = Field(default_factory=ManifestContext)
+    worktree: ManifestWorktree = Field(default_factory=ManifestWorktree)
 
 
 MANIFEST_FILENAMES = ["bum.config.json", ".bum/config.json", "agent.config.json"]
+WORKTREE_MANIFEST_SNAPSHOT = "bum-active-manifest.json"
+
+
+def worktree_manifest_snapshot(root: Path) -> Optional[Path]:
+    """Private Git metadata, not a new agent-editable/mergeable repo document."""
+    gitfile = root / ".git"
+    if not gitfile.is_file():
+        return None
+    text = gitfile.read_text(encoding="utf-8").strip()
+    if not text.startswith("gitdir: "):
+        return None
+    gitdir = Path(text[len("gitdir: "):])
+    if not gitdir.is_absolute():
+        gitdir = root / gitdir
+    return gitdir.resolve() / WORKTREE_MANIFEST_SNAPSHOT
 
 
 def find_manifest(start_dir: Path) -> Optional[Path]:
@@ -122,6 +152,10 @@ def load_manifest(manifest_path_or_dir: Path) -> BumManifest:
     if manifest_path_or_dir.is_file():
         target_file = manifest_path_or_dir
     elif manifest_path_or_dir.is_dir():
+        snapshot = worktree_manifest_snapshot(manifest_path_or_dir)
+        if snapshot and snapshot.is_file():
+            # A broken explicit snapshot must not silently downgrade run policy.
+            return BumManifest.model_validate_json(snapshot.read_text(encoding="utf-8"))
         target_file = find_manifest(manifest_path_or_dir)
 
     if not target_file or not target_file.is_file():
@@ -165,6 +199,9 @@ def generate_default_manifest(
             pkg_raw = (root_dir / "package.json").read_text(encoding="utf-8")
             pkg_data = json.loads(pkg_raw)
             scripts = pkg_data.get("scripts", {})
+            # Inference selects a runner, never opts a project into installation.
+            pinned_pnpm = re.fullmatch(r"pnpm@\d+\.\d+\.\d+(?:\+sha(?:224|256|384|512)\.[a-fA-F0-9]+)?", str(pkg_data.get("packageManager", "")))
+            runner = "pnpm" if pinned_pnpm else "npm"
 
             if "expo" in pkg_data.get("dependencies", {}):
                 inferred_type = "react-native-expo"
@@ -174,14 +211,16 @@ def generate_default_manifest(
                 inferred_type = "node"
 
             if "ts:check" in scripts:
-                verification.typecheck_cmd = "npm run ts:check"
+                verification.typecheck_cmd = f"{runner} run ts:check"
+            elif "typecheck" in scripts:
+                verification.typecheck_cmd = f"{runner} run typecheck"
             elif (root_dir / "tsconfig.json").is_file():
-                verification.typecheck_cmd = "npx tsc --noEmit"
+                verification.typecheck_cmd = "pnpm exec tsc --noEmit" if pinned_pnpm else "npx tsc --noEmit"
 
             if "test" in scripts:
-                verification.test_cmd = "npm test"
+                verification.test_cmd = f"{runner} test"
             if "lint" in scripts:
-                verification.lint_cmd = "npm run lint"
+                verification.lint_cmd = f"{runner} run lint"
 
         except Exception:
             inferred_type = "node"

@@ -3,7 +3,7 @@ from typing import Optional
 
 import yaml
 
-from orchestrator.providers import call_provider
+from orchestrator.providers import call_provider, validate_provider_options
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,6 +31,10 @@ def run_agent(role: str, user_prompt: str, timeout: Optional[float] = None) -> s
         raise ValueError(f"Unknown agent role: {role}")
 
     agent = agents[role]
+    options = {key: agent[key] for key in ("max_tokens", "reasoning") if key in agent}
+    validated_reasoning = validate_provider_options(agent["provider"], agent["model"], **options)
+    if "reasoning" in options:
+        options["reasoning"] = validated_reasoning
 
     system_prompt = load_instructions(agent["instructions"])
 
@@ -40,6 +44,7 @@ def run_agent(role: str, user_prompt: str, timeout: Optional[float] = None) -> s
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         timeout=timeout,
+        **options,
     )
 
 

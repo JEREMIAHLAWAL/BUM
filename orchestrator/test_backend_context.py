@@ -5,8 +5,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from orchestrator.run import run_agent
-from orchestrator.repo_tools import repo_tree
+
+
 
 
 def read_pipeline_file(name: str) -> str:
@@ -18,67 +18,75 @@ def read_pipeline_file(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-handoff = read_pipeline_file("HANDOFF.md")
-spec = read_pipeline_file("spec.md")
-changes = read_pipeline_file("changes.md")
-tree = repo_tree(max_depth=3)
+def main():
+    from orchestrator.run import run_agent
+    from orchestrator.repo_tools import repo_tree
 
-prompt = f"""
-This is a READ-ONLY repository context connection test.
+    handoff = read_pipeline_file("HANDOFF.md")
+    spec = read_pipeline_file("spec.md")
+    changes = read_pipeline_file("changes.md")
+    tree = repo_tree(max_depth=3)
 
-You are the Backend agent for Trayne.
+    prompt = f"""
+    This is a READ-ONLY repository context connection test.
 
-You have been given:
-1. The Trayne engineering handoff
-2. The current Planner spec
-3. The current changes log
-4. The actual Trayne repository tree
+    You are the Backend agent for Trayne.
 
-Your task is ONLY to verify that you can understand the real Trayne project context.
+    You have been given:
+    1. The Trayne engineering handoff
+    2. The current Planner spec
+    3. The current changes log
+    4. The actual Trayne repository tree
 
-DO NOT:
-- write code
-- propose implementation changes
-- modify files
-- run tests
-- act as Tester
-- act as Reviewer
-- invent files, frameworks, routes, APIs, or architecture
+    Your task is ONLY to verify that you can understand the real Trayne project context.
 
-Review the supplied context and repository tree.
+    DO NOT:
+    - write code
+    - propose implementation changes
+    - modify files
+    - run tests
+    - act as Tester
+    - act as Reviewer
+    - invent files, frameworks, routes, APIs, or architecture
 
-If you understand the real Trayne project and can use this context for future backend work, respond with exactly:
+    Review the supplied context and repository tree.
 
-BACKEND_REPO_CONTEXT_OK
+    If you understand the real Trayne project and can use this context for future backend work, respond with exactly:
 
-If the context is insufficient, respond with:
+    BACKEND_REPO_CONTEXT_OK
 
-BACKEND_REPO_CONTEXT_FAIL
+    If the context is insufficient, respond with:
 
-and briefly state what is missing.
+    BACKEND_REPO_CONTEXT_FAIL
 
-
-===== HANDOFF.md =====
-
-{handoff}
-
-
-===== spec.md =====
-
-{spec}
+    and briefly state what is missing.
 
 
-===== changes.md =====
+    ===== HANDOFF.md =====
 
-{changes}
+    {handoff}
 
 
-===== TRAYNE REPOSITORY TREE =====
+    ===== spec.md =====
 
-{tree}
-"""
+    {spec}
 
-response = run_agent("backend", prompt)
 
-print("\n=== BACKEND CONTEXT TEST ===\n")
-print(response)
+    ===== changes.md =====
+
+    {changes}
+
+
+    ===== TRAYNE REPOSITORY TREE =====
+
+    {tree}
+    """
+
+    response = run_agent("backend", prompt)
+
+    print("\n=== BACKEND CONTEXT TEST ===\n")
+    print(response)
+
+
+if __name__ == "__main__":
+    main()

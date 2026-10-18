@@ -6,8 +6,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from orchestrator.run import run_agent
-from orchestrator.repo_tools import repo_tree
+
+
 
 
 PIPELINE_DIR = PROJECT_ROOT / "pipeline"
@@ -21,6 +21,9 @@ def read_pipeline_file(name: str) -> str:
 
 
 def run_planner_perf_test():
+    from orchestrator.run import run_agent
+    from orchestrator.repo_tools import repo_tree
+
     handoff = read_pipeline_file("HANDOFF.md")
     tree = repo_tree()
 
@@ -80,5 +83,9 @@ pipeline/spec.md
         sys.exit(1)
 
 
-if __name__ == "__main__":
+def main():
     run_planner_perf_test()
+
+
+if __name__ == "__main__":
+    main()

@@ -242,10 +242,7 @@ async def stop_pipeline(run_id: Optional[str] = None):
 
 @app.post("/api/runs/{run_id}/resume", status_code=202)
 async def resume_run_endpoint(run_id: str):
-    """
-    Resume an existing run from Tester/Reviewer evaluation after manual or automated intervention,
-    skipping re-planning and re-coding.
-    """
+    """Refuse unsafe legacy recovery; use a new isolated full-pipeline retry instead."""
     if not validate_run_id(run_id):
         raise HTTPException(status_code=400, detail="Invalid run_id format")
 
@@ -257,33 +254,16 @@ async def resume_run_endpoint(run_id: str):
     if not run_dir.exists():
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
 
-    active_status = execution_manager.get_status()
-    if active_status.get("running"):
-        return JSONResponse(
-            status_code=409,
-            content={
-                "error": "pipeline_already_running",
-                "message": f"Pipeline already running with run_id: {active_status.get('run_id')}",
-                "run_id": active_status.get("run_id"),
-            },
-        )
-
-    from orchestrator.resume_test_review import run_test_and_review
-    def _runner(task_text, r_id, token):
-        append_event_to_run(
-            run_id=r_id,
-            event="stage_resumed",
-            stage="tester",
-            payload={"resumed_from": run_id, "mode": "test_and_review"},
-        )
-        run_test_and_review()
-
-    res = execution_manager.start_pipeline(
-        task=f"Resume evaluation for {run_id}",
-        pipeline_func=_runner,
-        retry_of=run_id,
+    # Legacy recovery reads shared artifacts and cannot reconstruct a retained
+    # isolated worktree or manifest verification context. Fail closed for all
+    # historical runs rather than selecting an unrelated project's checkout.
+    raise HTTPException(
+        status_code=409,
+        detail=("Legacy /resume is disabled: it cannot safely restore run-scoped artifacts, "
+                "the isolated worktree and manifest verification context. "
+                f"Use POST /api/runs/{run_id}/retry for a new isolated full pipeline run "
+                "with parent lineage only; previous artifacts will not be imported."),
     )
-    return res
 
 
 @app.post("/api/runs/{run_id}/retry", status_code=202)
@@ -560,6 +540,10 @@ async def get_run_details(run_id: str):
     active_status = execution_manager.get_status()
     is_active = bool(active_status.get("running") and active_status.get("run_id") == run_id)
     state = reduce_run_state(events, is_active=is_active)
+    try:
+        state["artifact_context"] = json.loads((run_dir / "artifact_context.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state["artifact_context"] = None  # Historical runs may predate scoped artifacts.
     return state
 
 

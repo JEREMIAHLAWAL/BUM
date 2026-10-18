@@ -5,15 +5,19 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from orchestrator.pipeline import (
-    parse_and_apply_agent_file_operations,
-    MalformedWriteError,
-)
-from orchestrator.repo_tools import read_file, file_exists, delete_file
-from orchestrator.git_tools import run_safe_git_command
+
+
+
 
 
 def test_write_protocol():
+    from orchestrator.pipeline import (
+        parse_and_apply_agent_file_operations,
+        MalformedWriteError,
+    )
+    from orchestrator.repo_tools import read_file, file_exists, delete_file
+    from orchestrator.git_tools import run_safe_git_command
+
     print("=== TESTING WRITE PROTOCOL PARSER ===")
 
     test_file = "agent_parser_test.tmp"
@@ -75,5 +79,9 @@ hello
     print("\nWRITE_PROTOCOL_OK")
 
 
-if __name__ == "__main__":
+def main():
     test_write_protocol()
+
+
+if __name__ == "__main__":
+    main()

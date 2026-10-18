@@ -5,18 +5,21 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from orchestrator.dependency_tools import (
-    build_dependency_command,
-    validate_package_name,
-    parse_dependency_request,
-    execute_controlled_dependency_action,
-    DependencyActionError,
-    ALLOWED_EXPO_PACKAGES,
-)
-from orchestrator.git_tools import run_safe_git_command
+
+
 
 
 def test_dependency_tools():
+    from orchestrator.dependency_tools import (
+        build_dependency_command,
+        validate_package_name,
+        parse_dependency_request,
+        execute_controlled_dependency_action,
+        DependencyActionError,
+        ALLOWED_EXPO_PACKAGES,
+    )
+    from orchestrator.git_tools import run_safe_git_command
+
     print("=== TESTING CONTROLLED DEPENDENCY ACTIONS ===")
 
     # 1. Test NPM_CI parsing and command generation
@@ -97,5 +100,9 @@ expo-status-bar
     print("\nCONTROLLED_DEPENDENCY_ACTIONS_OK")
 
 
-if __name__ == "__main__":
+def main():
     test_dependency_tools()
+
+
+if __name__ == "__main__":
+    main()
