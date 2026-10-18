@@ -1,0 +1,37 @@
+{
+  "python": "3.14.7 (main, Sep  1 2026, 14:17:30) [MSC v.1944 64 bit (AMD64)]",
+  "scratch": "C:\\Users\\2880441\\AppData\\Local\\hermes\\cache\\scratch",
+  "groups": [
+    {
+      "name": "import_safety",
+      "tests": [
+        "orchestrator.test_legacy_import_safety"
+      ],
+      "tests_run": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "ok": true,
+      "setup_error": null,
+      "elapsed_seconds": 0.028,
+      "log": "test_legacy_imports_have_no_provider_command_git_or_file_side_effects (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_imports_have_no_provider_command_git_or_file_side_effects) ... ok\ntest_legacy_scripts_have_explicit_manual_entrypoints (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_scripts_have_explicit_manual_entrypoints) ... ok\ntest_reviewer_git_policy_probe_never_reaches_repository_or_subprocess (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_reviewer_git_policy_probe_never_reaches_repository_or_subprocess) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.025s\n\nOK\n"
+    },
+    {
+      "name": "bum03_scoped",
+      "tests": [
+        "orchestrator.test_contract_section_ownership"
+      ],
+      "tests_run": 0,
+      "failures": 0,
+      "errors": 1,
+      "skipped": 0,
+      "ok": false,
+      "setup_error": "Traceback (most recent call last):\n  File \"docs/evidence/BUM-03/run_offline.py\", line 121, in main\n    isolate(stack)\n    ~~~~~~~^^^^^^^\n  File \"docs/evidence/BUM-03/run_offline.py\", line 108, in isolate\n    module = importlib.import_module(module_name)\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\tools\\python-3.14.7+20260901-win32-x64\\Lib\\unittest\\mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\tools\\python-3.14.7+20260901-win32-x64\\Lib\\unittest\\mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\tools\\python-3.14.7+20260901-win32-x64\\Lib\\unittest\\mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\cache\\scratch\\bum03_harness_failure_probe.py\", line 12, in fail_setup\n    raise RuntimeError(\"BUM03 deliberate harness setup-failure probe\")\nRuntimeError: BUM03 deliberate harness setup-failure probe\n",
+      "elapsed_seconds": 0.055,
+      "log": "Traceback (most recent call last):\n  File \"docs/evidence/BUM-03/run_offline.py\", line 121, in main\n    isolate(stack)\n    ~~~~~~~^^^^^^^\n  File \"docs/evidence/BUM-03/run_offline.py\", line 108, in isolate\n    module = importlib.import_module(module_name)\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\tools\\python-3.14.7+20260901-win32-x64\\Lib\\unittest\\mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\tools\\python-3.14.7+20260901-win32-x64\\Lib\\unittest\\mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\tools\\python-3.14.7+20260901-win32-x64\\Lib\\unittest\\mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n  File \"C:\\Users\\2880441\\AppData\\Local\\hermes\\cache\\scratch\\bum03_harness_failure_probe.py\", line 12, in fail_setup\n    raise RuntimeError(\"BUM03 deliberate harness setup-failure probe\")\nRuntimeError: BUM03 deliberate harness setup-failure probe\n"
+    }
+  ],
+  "denied_attempts": [],
+  "allowed_stdlib_socketpairs": [],
+  "ok": false
+}

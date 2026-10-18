@@ -56,10 +56,12 @@
 
 ## BUM-03 — Contract parsing and read-only ownership
 
-- [ ] Inspect partial `contract_tools.py` and `test_contract_section_ownership.py` work.
-- [ ] Parse writable/reference sections by real Markdown boundaries, including numbered/nested role headings and Next route-group paths.
-- [ ] Keep read-only references read-only and reject conflicting ownership; do not silently promote paths.
-- [ ] Prove this with the **real extractor feeding the actual Tester validator**, plus compatibility checks against the actual Planner readiness output.
+- [x] Inspect partial `contract_tools.py` and `test_contract_section_ownership.py` work.
+- [x] Parse writable/reference sections by real Markdown boundaries, including numbered/nested role headings and Next route-group paths.
+- [x] Keep read-only references read-only and reject conflicting ownership; do not silently promote paths.
+- [x] Prove this with the **real extractor feeding the actual Tester validator**, plus compatibility checks against the actual Planner readiness output.
+
+**Completed October 18, 2026:** exact tested code/test/audit-runner `44da6a57f72fa62e17456e4fdb0f8dc58d397e63`. Import-safety first: 3 tests OK, 0.028s; then 30 contract tests OK, 0.774s; no failures/errors/skips or denied side-effect attempts. Real guarded scratch create/update/delete and reference rejection covered; nested sections, route groups/dynamic brackets, malformed-token truncation and filesystem-equivalent reference conflicts covered. Stored literal identifiers preserved. Planner fixture verified verbatim against publication. Existing five roles, pipeline/batch implementation and canonical source snapshots unchanged. Evidence, review findings/fixes, limits and BUM-04-only next-chat prompt: [BUM-03 handoff](BUM-03_HANDOFF.md). BUM-04/05 remain pending, FS-011 stays paused; stop here.
 
 **Exit:** reference-write attack rejected end-to-end; valid owned paths remain usable; no production permission widening.
 

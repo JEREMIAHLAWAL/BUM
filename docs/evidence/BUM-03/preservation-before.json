@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-10-18T15:27:05.793893+00:00",
+  "bum_head": "8f81d3368154aa8a0ac6c3e814100501ff51b31a",
+  "finder_head": "b5b3bc1a3af182fbb473a309518a69436bf65dfa",
+  "finder_status": "?? FinderShip_FS011_Source_Docs.zip\n?? IDEA.md\n?? README_HERMES_HANDOFF.md\n?? docs/FS-011_HANDOFF.md",
+  "worktrees": {
+    "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\BUM": "worktree C:/Users/2880441/Documents/AGENTS/JL/BUM\nHEAD 8f81d3368154aa8a0ac6c3e814100501ff51b31a\nbranch refs/heads/fix/fs-011-console-compatibility",
+    "C:\\Users\\2880441\\Documents\\AGENTS\\JL\\FinderShip": "worktree C:/Users/2880441/Documents/AGENTS/JL/FinderShip\nHEAD b5b3bc1a3af182fbb473a309518a69436bf65dfa\nbranch refs/heads/fs-011/authentication"
+  },
+  "untracked_hashes": {
+    "FinderShip_FS011_Source_Docs.zip": "303a3b2b1910e5644a339e5108d1045627f3e88d673ccbd37a047d1305d70227",
+    "IDEA.md": "6a6c07ddf56b52ddd3979b3f0fcd1d7a52ce582ee4d6a6d65792547536f07b92",
+    "README_HERMES_HANDOFF.md": "c51962b315e2b10edd12b07818abcd467c4951ddeadddebf005dd50564b17ef5",
+    "docs/FS-011_HANDOFF.md": "f65d6fd8520ab51fea7446629780ab6accc10b2d74f43639149cb17eb318dc84"
+  },
+  "role_config_hash": "3c1f8032a3bcb0df09ec1c1ca98bf060c4dc792af9f0700b27cbf27c04abff4b",
+  "source_hashes": {
+    "FINDERSHIP/FS-011_IMPLEMENTATION_BRIEF.md": "fada9a1b848f8a83c393ef20acd5ee09ee727488d90d1268b7cac84ec93da968",
+    "FINDERSHIP/FinderShip_Discovery.md": "f2b4c54be17070962b19e6bff4baa1b6760d5223340ffe43925fc1dcaedaae19",
+    "FINDERSHIP/FinderShip_Technical_Plan.md": "4d6d5cda525a0edce632b99cbe4dadea68fc967cb6803a0caa6d31ec7505d52e",
+    "FINDERSHIP/GPT_Proposal.md": "194003a7cece3161777b7675bb3d8bfd3ab0812868ed633517d20e34e4d241ff",
+    "FINDERSHIP/MASTER_TODO.md": "933c1114c16ae9df8484e90ba11016d423570e96c001eee5cc8f20ebf858add9",
+    "FINDERSHIP/technical-sections/00_README.md": "8b49b14e84daa5540cbf69b605eb7947c285edab1b40abe9374bcfe2473877ad",
+    "FINDERSHIP/technical-sections/01_Architecture_and_Stack.md": "5be4057232edeab1b67a10c6ea865e708d93528b8bf530bef00264fd949a46e7",
+    "FINDERSHIP/technical-sections/02_Internship_Sources_and_Ingestion.md": "a2ca761768771a8beb70819c49812266b55d7829e2e4568950648364fdac4991",
+    "FINDERSHIP/technical-sections/03_Matching_Eligibility_and_AI.md": "0e510a99ad8d33278418df880fe3e5a4fb5453184716f2230f1964829770f4d5",
+    "FINDERSHIP/technical-sections/04_Background_Jobs_and_Scheduling.md": "735bcf540daf3620cd77dc5eb4ba30c61d90fc29a33d949da4a046f738ba856f",
+    "FINDERSHIP/technical-sections/05_Subscriptions_Trials_and_Usage.md": "64609c7efafa3382abc451c4dd14bc6b493eed96b09a81b7324400d43bc75a1f",
+    "FINDERSHIP/technical-sections/06_Contacts_and_Outreach.md": "4f964ddb53081b825a87911cc1ba4df6688e20fc971d54b7a98501929c1c24e9",
+    "FINDERSHIP/technical-sections/07_Database_and_Data_Model.md": "e75188c8a7679baee96d893010e3c14d6b980722461edf450b79921937ce48f1",
+    "FINDERSHIP/technical-sections/08_Repository_and_Agent_Workflow.md": "3d1328e236b518f19b84f4b37dd06239895f7a91c3515d671959d916d1b44aba",
+    "FINDERSHIP/technical-sections/09_Decision_Summary_and_Constraints.md": "50f0b715f34e94f77746636d634fde3b1e570e3ab60c4cce5840fea88c3b0b15"
+  }
+}
