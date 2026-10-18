@@ -9,8 +9,11 @@ from contextlib import ExitStack, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import pipeline
-from orchestrator import test_tester_writes as fixtures
+# Prevent credential reads and the server's import-time Git probe.
+with patch("dotenv.load_dotenv", return_value=False), patch("subprocess.run"):
+    from orchestrator import pipeline, repo_tools
+    from orchestrator import test_tester_writes as fixtures
+    from orchestrator.agent_flow import server
 
 
 class BatchPreflightTests(unittest.TestCase):
@@ -181,7 +184,16 @@ class CanonicalSourceStageTests(unittest.TestCase):
     def setUp(self):
         with patch.object(tempfile, "tempdir", str(Path.home() / "AppData/Local/hermes/cache/scratch")):
             fixtures.TesterWriteTests.setUp(self)
+        for name in ("AGENTS_ROOT", "WORKSPACE_ROOT"):
+            self.stack.enter_context(patch.object(repo_tools, name, self.root))
+        self.stack.enter_context(patch("subprocess.run", side_effect=AssertionError("Source tests cannot run subprocesses")))
+        # Source propagation is under test, not execution of fixture checks.
+        self.stack.enter_context(patch("orchestrator.command_tools.run_safe_command", return_value={
+            "command": "fixture command", "returncode": 0, "stdout": "OFFLINE FIXTURE",
+            "stderr": "", "timed_out": False}))
+
     command_fixture = fixtures.TesterWriteTests.command_fixture
+
     pipeline_fixture = fixtures.TesterWriteTests.pipeline_fixture
     run_offline_pipeline = fixtures.TesterWriteTests.run_offline_pipeline
 

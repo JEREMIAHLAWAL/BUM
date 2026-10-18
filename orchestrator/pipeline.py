@@ -69,14 +69,28 @@ def get_pipeline_dir() -> Path:
     return _artifact_directory.get() or PIPELINE_DIR
 
 
-def _artifact_provenance_matches(metadata_path: Path) -> bool:
+def _artifact_provenance_matches(metadata_path: Path, *, artifact_dir: Optional[Path] = None) -> bool:
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if not isinstance(metadata, dict):
+            return False
         source = metadata.get("project_repo_path")
         project = _artifact_project.get() or get_repo_root()
-        return bool(source and Path(source).resolve() == Path(project).resolve())
+        if not source or Path(source).resolve() != Path(project).resolve():
+            return False
+        if artifact_dir is not None:
+            recorded_dir = metadata.get("artifact_dir")
+            return bool(recorded_dir and Path(recorded_dir).resolve() == artifact_dir.resolve()
+                        and metadata.get("run_id") == artifact_dir.parent.name)
+        return True
     except (OSError, ValueError, TypeError, RuntimeError):
         return False
+
+
+def _artifact_context_matches() -> bool:
+    directory = _artifact_directory.get()
+    metadata_path = (directory.parent if directory is not None else get_pipeline_dir()) / "artifact_context.json"
+    return _artifact_provenance_matches(metadata_path, artifact_dir=directory)
 
 
 def read_pipeline_file(name: str) -> str:
@@ -119,6 +133,8 @@ def write_pipeline_file(name: str, content: str) -> None:
 
 def get_salvaged_context() -> str:
     salvage_dir = get_pipeline_dir() / "salvage" / "latest"
+    if _artifact_directory.get() is not None and not _artifact_context_matches():
+        return ""
     if not salvage_dir.exists() or not _artifact_provenance_matches(salvage_dir / "meta.json"):
         return ""
     
@@ -198,10 +214,7 @@ def clear_salvaged_work() -> None:
 
 
 def get_shared_context() -> str:
-    handoff = read_pipeline_file("HANDOFF.md") if (
-        _artifact_directory.get() is not None
-        or _artifact_provenance_matches(get_pipeline_dir() / "artifact_context.json")
-    ) else ""
+    handoff = read_pipeline_file("HANDOFF.md") if _artifact_context_matches() else ""
     tree = repo_tree()
     salvaged = get_salvaged_context()
     repo_root = get_repo_root()

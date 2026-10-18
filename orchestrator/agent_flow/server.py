@@ -316,6 +316,22 @@ async def retry_run(run_id: str):
             detail=f"Run '{run_id}' with status '{current_status}' is not eligible for retry.",
         )
 
+    # Retry must not reinterpret another project's task or @file references
+    # against the currently selected repository.
+    start_payload = next((event.get("payload", {}) for event in events
+                          if event.get("event") == "pipeline_started"), {})
+    source_project = start_payload.get("project_repo_path")
+    if not isinstance(source_project, str) or not source_project.strip():
+        raise HTTPException(
+            status_code=409,
+            detail="Retry project provenance is unavailable. Select the intended project and start a new full run with the original task.",
+        )
+    if Path(source_project).resolve() != resolve_repo_root()[0].resolve():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Retry belongs to a different project ({source_project}). Select that project before retrying this run.",
+        )
+
     try:
         result = execution_manager.start_pipeline(
             task=original_task.strip(),
