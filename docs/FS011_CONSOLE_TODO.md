@@ -70,10 +70,12 @@
 
 ## BUM-04 — Tester operation-batch preflight
 
-- [ ] Inspect partial batch changes in `pipeline.py` and `test_artifact_scope_and_batch.py` after BUM-02's handoff.
-- [ ] Reject predictable missing-delete, directory-target and parent-file conflicts before the first mutation.
-- [ ] Simulate operation order correctly, including valid write-then-delete behavior. Do not weaken the manifest/contract/link guards.
-- [ ] State unexpected IO/partial-write limitations honestly; avoid a broad transactional filesystem rewrite.
+- [x] Inspect partial batch changes in `pipeline.py` and `test_artifact_scope_and_batch.py` after BUM-02's handoff.
+- [x] Reject predictable missing-delete, directory-target and parent-file conflicts before the first mutation.
+- [x] Simulate operation order correctly, including valid write-then-delete behavior. Do not weaken the manifest/contract/link guards.
+- [x] State unexpected IO/partial-write limitations honestly; avoid a broad transactional filesystem rewrite.
+
+**Completed October 18, 2026:** exact tested code commit `ad18c636c2bab8a2cb86da9b732bb8f6f871bde6`. Audited import-safety prerequisite: 3 tests OK, 0.024s; then 15 scoped artifact/batch/source tests OK, 0.275s; zero failures/errors/skips, zero denied side-effect attempts. Predictable missing deletes, directory targets, parent-file conflicts, and contract/manifest violations reject before first mutation. Valid sequential write-then-delete and delete-then-write proven. Unexpected I/O failure limits stated honestly without broad transactional rollback claims. Full evidence, limits and BUM-05 next-chat prompt: [BUM-04 handoff](BUM-04_HANDOFF.md). BUM-05 remains pending; stop here.
 
 **Exit:** invalid later operations cause zero earlier writes in regressions; valid sequences work; all permission and failed-verification gates remain enforced.
 

@@ -1,0 +1,46 @@
+{
+  "python": "3.14.7 (main, Sep  1 2026, 14:17:30) [MSC v.1944 64 bit (AMD64)]",
+  "scratch": "C:\\Users\\2880441\\AppData\\Local\\hermes\\cache\\scratch",
+  "groups": [
+    {
+      "name": "import_safety",
+      "tests": [
+        "orchestrator.test_legacy_import_safety"
+      ],
+      "tests_run": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "ok": true,
+      "setup_error": null,
+      "elapsed_seconds": 0.027,
+      "log": "test_legacy_imports_have_no_provider_command_git_or_file_side_effects (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_imports_have_no_provider_command_git_or_file_side_effects) ... ok\ntest_legacy_scripts_have_explicit_manual_entrypoints (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_legacy_scripts_have_explicit_manual_entrypoints) ... ok\ntest_reviewer_git_policy_probe_never_reaches_repository_or_subprocess (orchestrator.test_legacy_import_safety.LegacyImportSafetyTests.test_reviewer_git_policy_probe_never_reaches_repository_or_subprocess) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.024s\n\nOK\n"
+    },
+    {
+      "name": "bum04_scoped",
+      "tests": [
+        "orchestrator.test_artifact_scope_and_batch"
+      ],
+      "tests_run": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "ok": true,
+      "setup_error": null,
+      "elapsed_seconds": 2.821,
+      "log": "test_legacy_resume_http_refuses_before_starting_worker (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_legacy_resume_http_refuses_before_starting_worker) ... ok\ntest_manual_legacy_resume_refuses_before_reading_or_running_commands (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_manual_legacy_resume_refuses_before_reading_or_running_commands) ... ok\ntest_real_helpers_use_scope_before_impl_and_restore_on_exception (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_real_helpers_use_scope_before_impl_and_restore_on_exception) ... ok\ntest_run_details_exposes_exact_persisted_artifact_context (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_run_details_exposes_exact_persisted_artifact_context) ... ok\ntest_unprovenanced_or_other_project_shared_salvage_never_autoloads (orchestrator.test_artifact_scope_and_batch.ArtifactScopeTests.test_unprovenanced_or_other_project_shared_salvage_never_autoloads) ... ok\ntest_contract_and_manifest_guards_block_batch_before_first_mutation (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_contract_and_manifest_guards_block_batch_before_first_mutation) ... ok\ntest_delete_file_then_write_child_directory_in_same_batch (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_delete_file_then_write_child_directory_in_same_batch) ... [AUDIT DELETE] Role: tester | File: tests/parent\n[AUDIT WRITE] Role: tester | Action: created | File: tests/parent/child.py\n\nWRITE ACTIONS PARSED: 2\nWRITE ACTIONS EXECUTED: 2\nFILES CREATED: ['tests/parent/child.py']\nFILES MODIFIED: []\nFILES DELETED: ['tests/parent']\nok\ntest_double_delete_is_blocked_before_any_writes (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_double_delete_is_blocked_before_any_writes) ... ok\ntest_predictable_invalid_later_operation_never_writes_earlier_file (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_predictable_invalid_later_operation_never_writes_earlier_file) ... ok\ntest_sequential_write_delete_and_delete_write_are_valid (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_sequential_write_delete_and_delete_write_are_valid) ... [AUDIT WRITE] Role: tester | Action: created | File: tests/transient.py\n[AUDIT DELETE] Role: tester | File: tests/transient.py\n\nWRITE ACTIONS PARSED: 2\nWRITE ACTIONS EXECUTED: 2\nFILES CREATED: ['tests/transient.py']\nFILES MODIFIED: []\nFILES DELETED: ['tests/transient.py']\n[AUDIT DELETE] Role: tester | File: tests/existing.py\n[AUDIT WRITE] Role: tester | Action: created | File: tests/existing.py\n\nWRITE ACTIONS PARSED: 2\nWRITE ACTIONS EXECUTED: 2\nFILES CREATED: ['tests/existing.py']\nFILES MODIFIED: []\nFILES DELETED: ['tests/existing.py']\nok\ntest_simulated_new_parent_file_conflict_blocks_whole_batch (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_simulated_new_parent_file_conflict_blocks_whole_batch) ... ok\ntest_unpredictable_io_error_propagates_without_claiming_atomic_rollback (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_unpredictable_io_error_propagates_without_claiming_atomic_rollback) ... [AUDIT WRITE] Role: tester | Action: created | File: tests/first.py\nok\ntest_write_child_then_delete_parent_directory_blocked_before_writes (orchestrator.test_artifact_scope_and_batch.BatchPreflightTests.test_write_child_then_delete_parent_directory_blocked_before_writes) ... ok\ntest_actual_file_reference_content_is_frozen_for_all_stages (orchestrator.test_artifact_scope_and_batch.CanonicalSourceStageTests.test_actual_file_reference_content_is_frozen_for_all_stages) ... ok\ntest_every_actual_stage_receives_once_resolved_immutable_brief (orchestrator.test_artifact_scope_and_batch.CanonicalSourceStageTests.test_every_actual_stage_receives_once_resolved_immutable_brief) ... ok\n\n----------------------------------------------------------------------\nRan 15 tests in 0.275s\n\nOK\n"
+    }
+  ],
+  "denied_attempts": [],
+  "allowed_stdlib_socketpairs": [
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    },
+    {
+      "event": "socket.connect",
+      "purpose": "stdlib socketpair self-pipe"
+    }
+  ],
+  "ok": true
+}
